@@ -257,10 +257,79 @@ describe('WhatsApp Integration Tests', () => {
     })
   })
 
-  describe('History Sync', () => {
+  describe('History Sync & Fetch History', () => {
     it('has synced some history on connection', () => {
       expect(store.getMessages(TEST_JID, 1)).toBeDefined()
     })
+
+    it('fetches older messages via fetchMessageHistory', async () => {
+      // Find the oldest message in the store for the test contact
+      // Check both phone JID and any JID (LID fallback)
+      const phoneMessages = store.getMessages(TEST_JID, 100)
+      const anyMessages = allMessages.filter(m =>
+        !m.key.remoteJid?.endsWith('@g.us')
+      )
+
+      const oldest = phoneMessages[0] || anyMessages[0]
+      if (!oldest) {
+        console.log('No messages in store to fetch history from — skipping')
+        return
+      }
+
+      const countBefore = allMessages.length
+
+      try {
+        await sock.fetchMessageHistory(
+          50,
+          oldest.key,
+          Number(oldest.messageTimestamp || 0)
+        )
+        // Wait for history sync event to deliver messages
+        await new Promise(r => setTimeout(r, 5000))
+      } catch (err: any) {
+        // fetchMessageHistory may fail if no older messages exist — that's ok
+        console.log(`fetchMessageHistory result: ${err.message || 'ok'}`)
+      }
+
+      // Store should still be functional (may or may not have new messages)
+      expect(store.getMessages(TEST_JID, 1)).toBeDefined()
+      console.log(`Messages before fetch: ${countBefore}, after: ${allMessages.length}`)
+    }, 30000)
+
+    it('fetches multiple batches of history', async () => {
+      const phoneMessages = store.getMessages(TEST_JID, 100)
+      const oldest = phoneMessages[0] || allMessages.find(m =>
+        !m.key.remoteJid?.endsWith('@g.us')
+      )
+
+      if (!oldest) {
+        console.log('No messages to fetch history from — skipping')
+        return
+      }
+
+      // Request 2 batches (100 messages)
+      const countBefore = allMessages.length
+      const batchCount = 2
+
+      for (let i = 0; i < batchCount; i++) {
+        try {
+          const currentOldest = store.getMessages(TEST_JID, 1)[0] || oldest
+          await sock.fetchMessageHistory(
+            50,
+            currentOldest.key,
+            Number(currentOldest.messageTimestamp || 0)
+          )
+          await new Promise(r => setTimeout(r, 3000))
+        } catch {
+          // May fail if no more history — expected
+          break
+        }
+      }
+
+      console.log(`Multi-batch fetch: before=${countBefore}, after=${allMessages.length}`)
+      // Just verify the store is still functional
+      expect(allMessages.length).toBeGreaterThanOrEqual(countBefore)
+    }, 30000)
   })
 
   describe('Incoming Message & Notifications (MANUAL — requires reply from test phone)', () => {

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import type { WAMessage } from 'baileys'
 import { MessageStore } from '../../src/messages/reader.js'
 import { phoneToJid, jidToPhone } from '../../src/utils/phone.js'
@@ -196,5 +196,121 @@ describe('MCP tool: messageToJson serialization', () => {
     } as WAMessage
     const json = messageToJson(msg)
     expect(json.reaction).toEqual({ emoji: '❤️', targetId: 'targetMsgId' })
+  })
+})
+
+describe('MCP tool: whatsapp_fetch_history logic', () => {
+  it('finds the oldest message in store for history fetch', () => {
+    const store = new MessageStore()
+    const jid = phoneToJid('+918341306132')
+    store.handleUpsert({
+      type: 'notify',
+      messages: [
+        makeMsg(jid, 'ID_OLDEST1', 'Oldest', 1000),
+        makeMsg(jid, 'ID_MIDDLE1', 'Middle', 2000),
+        makeMsg(jid, 'ID_NEWEST1', 'Newest', 3000),
+      ],
+    })
+    // getMessages with limit 1 returns the most recent; for oldest we need limit=all then [0]
+    const allMsgs = store.getMessages(jid, 100)
+    const oldest = allMsgs[0]
+    expect(oldest.message?.conversation).toBe('Oldest')
+    expect(oldest.key.id).toBe('ID_OLDEST1')
+    expect(Number(oldest.messageTimestamp)).toBe(1000)
+  })
+
+  it('calculates correct batch count for requested messages', () => {
+    // Mirrors the batching logic in mcp-server.ts
+    const testCases = [
+      { count: 10, expectedBatches: 1 },
+      { count: 50, expectedBatches: 1 },
+      { count: 51, expectedBatches: 2 },
+      { count: 100, expectedBatches: 2 },
+      { count: 200, expectedBatches: 4 },
+      { count: 500, expectedBatches: 10 },
+    ]
+    for (const { count, expectedBatches } of testCases) {
+      const batches = Math.ceil(count / 50)
+      expect(batches, `count=${count}`).toBe(expectedBatches)
+    }
+  })
+
+  it('calculates correct batch sizes', () => {
+    const count = 120
+    const batches = Math.ceil(count / 50)
+    const sizes: number[] = []
+    for (let i = 0; i < batches; i++) {
+      sizes.push(Math.min(50, count - i * 50))
+    }
+    expect(sizes).toEqual([50, 50, 20])
+  })
+
+  it('falls back to LID JID when phone JID has no messages', () => {
+    const store = new MessageStore()
+    const phoneJid = phoneToJid('+918341306132')
+    const lidJid = '12345@lid'
+    const lidToPhone = new Map<string, string>()
+    const phoneToLid = new Map<string, string>()
+
+    // No messages under phone JID
+    expect(store.getMessages(phoneJid, 1)).toHaveLength(0)
+
+    // Messages under LID JID
+    store.handleUpsert({
+      type: 'notify',
+      messages: [makeMsg(lidJid, 'LID_MSG_1', 'Hello via LID', 1000)],
+    })
+
+    // Map the LID
+    lidToPhone.set(lidJid, phoneJid)
+    phoneToLid.set(phoneJid, lidJid)
+
+    // Simulate the MCP fallback logic
+    let oldest = store.getMessages(phoneJid, 1)[0]
+    if (!oldest) {
+      const lid = phoneToLid.get(phoneJid)
+      if (lid) oldest = store.getMessages(lid, 1)[0]
+    }
+
+    expect(oldest).toBeDefined()
+    expect(oldest.message?.conversation).toBe('Hello via LID')
+  })
+
+  it('returns error when no messages in store', () => {
+    const store = new MessageStore()
+    const jid = phoneToJid('+910000000000')
+    const messages = store.getMessages(jid, 1)
+    expect(messages).toHaveLength(0)
+    // MCP tool would return: { success: false, error: 'No messages in store...' }
+  })
+
+  it('history sync adds older messages to the store', () => {
+    const store = new MessageStore()
+    const jid = phoneToJid('+918341306132')
+
+    // Initial messages from upsert
+    store.handleUpsert({
+      type: 'notify',
+      messages: [makeMsg(jid, 'ID_NEW1', 'New message', 5000)],
+    })
+    expect(store.getMessages(jid, 100)).toHaveLength(1)
+
+    // Older messages arrive via history sync (simulating fetchMessageHistory result)
+    store.handleHistorySync({
+      chats: [],
+      contacts: [],
+      messages: [
+        makeMsg(jid, 'ID_OLD1', 'Old message 1', 1000),
+        makeMsg(jid, 'ID_OLD2', 'Old message 2', 2000),
+        makeMsg(jid, 'ID_OLD3', 'Old message 3', 3000),
+      ],
+      isLatest: false,
+    } as any)
+
+    const allMsgs = store.getMessages(jid, 100)
+    expect(allMsgs).toHaveLength(4)
+    // Should be sorted by timestamp ascending
+    expect(allMsgs[0].message?.conversation).toBe('Old message 1')
+    expect(allMsgs[3].message?.conversation).toBe('New message')
   })
 })

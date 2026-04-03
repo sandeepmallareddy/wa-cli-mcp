@@ -196,7 +196,7 @@ claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/wa-cli-mcp/src/mcp-server
 | `whatsapp_send` | Send text message |
 | `whatsapp_send_media` | Send image/video/doc/voice note |
 | `whatsapp_read` | Read messages from a contact (includes history synced on connect; does not require a subscription) |
-| `whatsapp_fetch_history` | Fetch older messages beyond what's in memory (up to 50 per call) |
+| `whatsapp_fetch_history` | Fetch older messages beyond what's in memory (up to 500, batched in 50s) |
 | `whatsapp_reply` | Quote-reply to a message |
 | `whatsapp_react` | React with emoji |
 | `whatsapp_edit` | Edit a sent message |
