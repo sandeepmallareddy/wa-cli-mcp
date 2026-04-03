@@ -3,7 +3,7 @@ import { mkdirSync, chmodSync, readdirSync } from 'fs'
 import path from 'path'
 import os from 'os'
 
-const AUTH_DIR = path.join(os.homedir(), '.config', 'whatsapp-bailey', 'auth_state')
+const AUTH_DIR = path.join(os.homedir(), '.config', 'wa-cli-mcp', 'auth_state')
 
 export async function getAuthState() {
   // Create auth dir with owner-only permissions

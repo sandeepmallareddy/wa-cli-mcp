@@ -4,7 +4,7 @@ import path from 'path'
 import os from 'os'
 import { getMediaType } from '../utils/format.js'
 
-const DOWNLOADS_DIR = path.join(os.homedir(), '.config', 'whatsapp-bailey', 'downloads')
+const DOWNLOADS_DIR = path.join(os.homedir(), '.config', 'wa-cli-mcp', 'downloads')
 
 /**
  * Download media from a message and save to downloads/ folder.

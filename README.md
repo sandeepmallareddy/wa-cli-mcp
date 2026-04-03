@@ -202,7 +202,7 @@ claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/wa-cli-mcp/src/mcp-server
 
 The subscription system lets Claude monitor specific contacts and groups for incoming messages.
 
-**Create a watch list** at `~/.config/whatsapp-bailey/watch.json`:
+**Create a watch list** at `~/.config/wa-cli-mcp/watch.json`:
 
 ```json
 {
@@ -246,7 +246,7 @@ wa-cli-mcp/
 │   │   └── forward.ts        # wa forward
 │   ├── client/
 │   │   ├── connection.ts     # WhatsApp connection, QR code, reconnection
-│   │   ├── auth.ts           # Session persistence (~/.config/whatsapp-bailey/)
+│   │   ├── auth.ts           # Session persistence (~/.config/wa-cli-mcp/)
 │   │   └── qrcode-terminal.d.ts  # Type declarations for qrcode-terminal
 │   ├── messages/
 │   │   ├── sender.ts         # Send text, media, reply, react, edit, delete, forward
@@ -269,7 +269,7 @@ wa-cli-mcp/
 **Data directories** (created automatically, not in repo):
 
 ```
-~/.config/whatsapp-bailey/
+~/.config/wa-cli-mcp/
 ├── auth_state/               # Session files (owner-only permissions: 700/600)
 ├── downloads/                # Downloaded media
 └── watch.json                # Contact/group watch list
@@ -279,9 +279,9 @@ wa-cli-mcp/
 
 This tool uses [Baileys](https://github.com/WhiskeySockets/Baileys), a TypeScript library that connects directly to WhatsApp's servers using the **Linked Devices** protocol (the same one WhatsApp Web uses). No browser automation — it's a direct WebSocket connection.
 
-- **Authentication:** When you scan the QR code, WhatsApp links your phone to this CLI as a "linked device". Session keys are saved in `~/.config/whatsapp-bailey/auth_state/` with owner-only permissions (700/600).
+- **Authentication:** When you scan the QR code, WhatsApp links your phone to this CLI as a "linked device". Session keys are saved in `~/.config/wa-cli-mcp/auth_state/` with owner-only permissions (700/600).
 - **Messages:** Sent via Baileys' `sendMessage` API. Incoming messages arrive through WebSocket events (`messages.upsert`).
-- **Media:** Files are read from disk and sent as buffers. Received media is downloaded via `downloadMediaMessage` and saved to `~/.config/whatsapp-bailey/downloads/`.
+- **Media:** Files are read from disk and sent as buffers. Received media is downloaded via `downloadMediaMessage` and saved to `~/.config/wa-cli-mcp/downloads/`.
 - **Groups:** Group metadata is fetched via `groupFetchAllParticipating`. Group messages use `@g.us` JIDs instead of `@s.whatsapp.net`.
 - **LID Mapping:** WhatsApp uses Linked IDs (LID) for incoming messages. The MCP server automatically resolves LID <-> phone number mappings using Baileys' signal repository.
 
@@ -289,7 +289,7 @@ This tool uses [Baileys](https://github.com/WhiskeySockets/Baileys), a TypeScrip
 
 This project has been hardened against the [OWASP MCP Top 10](https://owasp.org/www-project-mcp-top-10/):
 
-- **Auth state security:** Session credentials stored at `~/.config/whatsapp-bailey/auth_state/` with `700` (directory) and `600` (file) permissions — owner-only access
+- **Auth state security:** Session credentials stored at `~/.config/wa-cli-mcp/auth_state/` with `700` (directory) and `600` (file) permissions — owner-only access
 - **File access control:** `send_media` blocks access to sensitive directories (`.ssh`, `.aws`, `auth_state`, `.gnupg`) and files (`.env`, `creds.json`, `id_rsa`, etc.)
 - **Stdout isolation:** MCP mode redirects all non-protocol stdout to stderr, preventing Baileys noise from corrupting the JSON-RPC transport
 - **Error sanitization:** All MCP tool handlers wrapped in try/catch — errors return safe messages, never stack traces or internal paths
@@ -305,7 +305,7 @@ This project has been hardened against the [OWASP MCP Top 10](https://owasp.org/
 Baileys only supports one active connection per auth state. Running the CLI and MCP server simultaneously (or two MCP instances) will cause session key corruption ("Bad MAC" errors). If this happens:
 
 ```bash
-rm -rf ~/.config/whatsapp-bailey/auth_state/
+rm -rf ~/.config/wa-cli-mcp/auth_state/
 npx tsx src/index.ts auth    # Re-scan QR code
 ```
 
@@ -334,7 +334,7 @@ The `read` command only shows messages received during the current session. What
 The auth state may be corrupted (usually from running two connections simultaneously). Delete and re-authenticate:
 
 ```bash
-rm -rf ~/.config/whatsapp-bailey/auth_state/
+rm -rf ~/.config/wa-cli-mcp/auth_state/
 npx tsx src/index.ts auth
 ```
 

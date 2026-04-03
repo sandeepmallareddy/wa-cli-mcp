@@ -18,7 +18,7 @@ const BLOCKED_DIRS = [
   path.join(os.homedir(), '.ssh'),
   path.join(os.homedir(), '.gnupg'),
   path.join(os.homedir(), '.aws'),
-  path.join(os.homedir(), '.config', 'whatsapp-bailey', 'auth_state'),
+  path.join(os.homedir(), '.config', 'wa-cli-mcp', 'auth_state'),
 ]
 
 /**

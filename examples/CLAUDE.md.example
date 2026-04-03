@@ -5,7 +5,7 @@ Copy this section into your project or user-level CLAUDE.md.
 
 ## Config
 
-Watch list: `~/.config/whatsapp-bailey/watch.json`
+Watch list: `~/.config/wa-cli-mcp/watch.json`
 
 Format:
 ```json
@@ -22,7 +22,7 @@ Format:
 ## Session startup
 
 1. Call `whatsapp_me` to identify the linked WhatsApp account
-2. Read `~/.config/whatsapp-bailey/watch.json`
+2. Read `~/.config/wa-cli-mcp/watch.json`
 3. Call `whatsapp_subscribe` for each contact (by phone) and group (by name)
 4. Briefly confirm: "WhatsApp monitoring active for X contacts and Y groups"
 
@@ -40,19 +40,19 @@ Format:
 ## When I say "watch +91XXXXXXXXXX" or "add X to WhatsApp watch"
 
 1. Ask for name and context if I don't provide them
-2. Add to `~/.config/whatsapp-bailey/watch.json` (contacts or groups section)
+2. Add to `~/.config/wa-cli-mcp/watch.json` (contacts or groups section)
 3. Call `whatsapp_subscribe` for the new entry
 4. Confirm what was added
 
 ## When I say "unwatch" or "stop watching X"
 
-1. Remove from `~/.config/whatsapp-bailey/watch.json`
+1. Remove from `~/.config/wa-cli-mcp/watch.json`
 2. Call `whatsapp_unsubscribe`
 3. Confirm what was removed
 
 ## When I say "who am I watching?" or "watch list"
 
-Read and display `~/.config/whatsapp-bailey/watch.json`
+Read and display `~/.config/wa-cli-mcp/watch.json`
 
 ## When I say "message X" or "tell X that..."
 
