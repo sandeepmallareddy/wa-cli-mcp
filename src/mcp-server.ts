@@ -17,7 +17,7 @@ import {
   sendText, sendMedia, sendReply, sendReaction,
   editMessage, deleteMessage, forwardMessage,
 } from './messages/sender.js'
-import { phoneToJid, jidToPhone } from './utils/phone.js'
+import { phoneToJid, jidToPhone, resolveJids } from './utils/phone.js'
 import {
   extractText, getMediaType, getMediaCaption,
   formatTimestamp, shortMessageId,
@@ -180,28 +180,17 @@ server.registerTool(
     }),
   },
   safeTool('whatsapp_read', async ({ phone, limit }) => {
-    const jid = phoneToJid(phone)
-    let messages = store.getMessages(jid, limit)
-    // Also check LID JID if no messages found under phone JID
-    if (messages.length === 0) {
-      const lid = phoneToLid.get(jid)
-      if (lid) {
-        messages = store.getMessages(lid, limit)
-      } else {
-        // Try to discover the LID
-        try {
-          const repo = (sock as any).signalRepository
-          if (repo?.lidMapping?.getLIDForPN) {
-            const discoveredLid = await repo.lidMapping.getLIDForPN(jid)
-            if (discoveredLid) {
-              lidToPhone.set(discoveredLid, jid)
-              phoneToLid.set(jid, discoveredLid)
-              messages = store.getMessages(discoveredLid, limit)
-            }
-          }
-        } catch {}
+    // Resolve all JIDs (phone + LID) using two-stage lookup
+    const jids = await resolveJids(sock, phone, store.getAllJids())
+    // Update LID caches for future lookups
+    const phoneJid = phoneToJid(phone)
+    for (const jid of jids) {
+      if (jid !== phoneJid && jid.endsWith('@lid')) {
+        lidToPhone.set(jid, phoneJid)
+        phoneToLid.set(phoneJid, jid)
       }
     }
+    const messages = store.getMessagesMultiJid(jids, limit)
     return ok({ messages: messages.map(messageToJson), count: messages.length })
   })
 )
@@ -216,14 +205,11 @@ server.registerTool(
     }),
   },
   safeTool('whatsapp_fetch_history', async ({ phone, count }) => {
-    const jid = phoneToJid(phone)
+    // Resolve all JIDs (phone + LID)
+    const jids = await resolveJids(sock, phone, store.getAllJids())
 
-    // Find the oldest message — check phone JID and LID JID
-    let oldest: WAMessage | undefined = store.getMessages(jid, 1)[0]
-    if (!oldest) {
-      const lid = phoneToLid.get(jid)
-      if (lid) oldest = store.getMessages(lid, 1)[0]
-    }
+    // Find the oldest message across all JIDs
+    const oldest = store.getMessagesMultiJid(jids, 1)[0]
     if (!oldest) {
       return ok({ success: false, error: 'No messages in store for this contact. Send or receive a message first, then try again.' })
     }
@@ -233,7 +219,7 @@ server.registerTool(
     const requestIds: string[] = []
     for (let i = 0; i < batches; i++) {
       const batchSize = Math.min(50, count - i * 50)
-      const currentOldest = store.getMessages(jid, 1)[0] || store.getMessages(phoneToLid.get(jid) || '', 1)[0] || oldest
+      const currentOldest = store.getMessagesMultiJid(jids, 1)[0] || oldest
       const requestId = await sock.fetchMessageHistory(batchSize, currentOldest.key, Number(currentOldest.messageTimestamp || 0))
       requestIds.push(requestId)
       // Small delay between batches to let history sync deliver
