@@ -319,6 +319,74 @@ rm -rf ~/.config/whatsapp-bailey/auth_state/
 npx tsx src/index.ts auth
 ```
 
+## Claude Code Integration (MCP Server)
+
+This project includes an MCP (Model Context Protocol) server that lets Claude Code interact with WhatsApp directly through structured tools.
+
+### Setup
+
+1. **Authenticate first** (if you haven't already):
+
+```bash
+cd /path/to/whatsapp-bailey
+npx tsx src/index.ts auth
+```
+
+2. **Add to your Claude Code settings** (`~/.claude/settings.json`):
+
+```json
+{
+  "mcpServers": {
+    "wa-cli-mcp": {
+      "command": "npx",
+      "args": ["tsx", "/absolute/path/to/whatsapp-bailey/src/mcp-server.ts"]
+    }
+  }
+}
+```
+
+Or add to a project-level `.mcp.json`:
+
+```json
+{
+  "wa-cli-mcp": {
+    "command": "npx",
+    "args": ["tsx", "/absolute/path/to/whatsapp-bailey/src/mcp-server.ts"]
+  }
+}
+```
+
+3. **Restart Claude Code.** The WhatsApp tools will be auto-discovered.
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `whatsapp_send` | Send text message |
+| `whatsapp_send_media` | Send image/video/doc/voice note |
+| `whatsapp_read` | Read messages from a contact |
+| `whatsapp_reply` | Quote-reply to a message |
+| `whatsapp_react` | React with emoji |
+| `whatsapp_edit` | Edit a sent message |
+| `whatsapp_delete` | Delete for everyone |
+| `whatsapp_forward` | Forward to contact or group |
+| `whatsapp_groups` | List all groups |
+| `whatsapp_send_group` | Send to a group by name |
+| `whatsapp_read_group` | Read group messages |
+| `whatsapp_subscribe` | Watch a contact/group for new messages |
+| `whatsapp_unsubscribe` | Stop watching |
+| `whatsapp_get_notifications` | Fetch new messages from watched contacts |
+
+### Subscription Example
+
+Claude can subscribe to a contact, do other work, then check for new messages:
+
+```
+1. whatsapp_subscribe({ target: "+919876543210" })
+2. ... do other tasks ...
+3. whatsapp_get_notifications()  → returns new messages since last check
+```
+
 ## Disclaimer
 
 This tool is **not affiliated with or endorsed by WhatsApp**. It uses an unofficial API (Baileys) and is intended for personal use only. Do not use it for spam, bulk messaging, or any activity that violates [WhatsApp's Terms of Service](https://www.whatsapp.com/legal/terms-of-service).
