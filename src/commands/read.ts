@@ -21,8 +21,16 @@ export async function readCommand(
     onHistorySync: (event) => store.handleHistorySync(event),
   })
 
-  // Wait for message sync
-  await new Promise((r) => setTimeout(r, 5000))
+  // Wait for history sync — keep waiting while new messages arrive
+  console.log('Waiting for history sync...')
+  let lastCount = 0
+  for (let i = 0; i < 12; i++) {
+    await new Promise((r) => setTimeout(r, 2500))
+    const currentCount = store.getAllJids().length
+    if (currentCount === lastCount && i >= 3) break
+    lastCount = currentCount
+  }
+  console.log(` done (${lastCount} chats synced)\n`)
 
   // Resolve phone JID + LID JID (pass store JIDs for reverse LID lookup)
   const jids = await resolveJids(sock, phone, store.getAllJids())

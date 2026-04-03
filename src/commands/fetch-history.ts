@@ -13,16 +13,29 @@ export async function fetchHistoryCommand(
 ): Promise<void> {
   const requested = parseInt(opts.last || '50', 10)
   const store = new MessageStore()
+  let syncing = true
 
   console.log('Connecting and syncing messages...\n')
 
   const sock = await connect({
     onMessages: (event) => store.handleUpsert(event),
-    onHistorySync: (event) => store.handleHistorySync(event),
+    onHistorySync: (event) => {
+      store.handleHistorySync(event)
+      if (syncing) process.stderr.write('.')
+    },
   })
 
-  // Wait for initial history sync
-  await new Promise((r) => setTimeout(r, 5000))
+  // Wait for initial history sync — keep waiting while new messages arrive
+  console.log('Waiting for history sync...')
+  let lastCount = 0
+  for (let i = 0; i < 12; i++) {
+    await new Promise((r) => setTimeout(r, 2500))
+    const currentCount = store.getAllJids().length
+    if (currentCount === lastCount && i >= 3) break // stable for 2.5s after minimum wait
+    lastCount = currentCount
+  }
+  console.log(` done (${lastCount} chats synced)\n`)
+  syncing = false
 
   // Resolve phone JID + LID JID (pass store JIDs for reverse LID lookup)
   const jids = await resolveJids(sock, phone, store.getAllJids())
@@ -30,27 +43,26 @@ export async function fetchHistoryCommand(
   let fetched = store.getMessagesMultiJid(jids, requested)
 
   if (fetched.length >= requested) {
-    console.log(`Already have ${fetched.length} messages from history sync.\n`)
+    console.log(`Got ${fetched.length} messages from history sync.\n`)
     await printMessages(fetched.slice(-requested), opts.media || false)
     sock.end(undefined)
     process.exit(0)
   }
 
-  // Need more — fetch in batches of 50
-  let remaining = requested - fetched.length
-  let batchCount = 0
-  const maxBatches = Math.ceil(remaining / 50)
+  // Need more — keep fetching until we have enough or no more arrive
+  const MAX_ATTEMPTS = 20
+  let attempt = 0
 
-  while (remaining > 0 && batchCount < maxBatches) {
-    // Find the oldest message across all JIDs
+  while (fetched.length < requested && attempt < MAX_ATTEMPTS) {
     const oldest = store.getMessagesMultiJid(jids, 1)[0]
     if (!oldest) {
       console.log('No messages in store to fetch history from. Send or receive a message first.')
       break
     }
 
-    const batchSize = Math.min(remaining, 50)
-    console.log(`Fetching ${batchSize} older messages (batch ${batchCount + 1}/${maxBatches})...`)
+    const batchSize = Math.min(50, requested - fetched.length)
+    attempt++
+    console.log(`Fetching older messages (attempt ${attempt}, have ${fetched.length} so far)...`)
 
     try {
       await sock.fetchMessageHistory(
@@ -63,18 +75,24 @@ export async function fetchHistoryCommand(
       break
     }
 
-    // Wait for the history sync event to deliver messages
-    await new Promise((r) => setTimeout(r, 3000))
-
-    const newCount = store.getMessagesMultiJid(jids, requested).length
-    if (newCount === fetched.length) {
-      console.log('No more messages available.')
-      break
+    // Wait for history sync events to deliver — poll until count stabilizes
+    let prevCount = fetched.length
+    for (let i = 0; i < 6; i++) {
+      await new Promise((r) => setTimeout(r, 2000))
+      const newFetched = store.getMessagesMultiJid(jids, requested)
+      if (newFetched.length > prevCount) {
+        prevCount = newFetched.length
+      } else if (i >= 1) {
+        break // count stable for 2s
+      }
     }
 
-    fetched = store.getMessagesMultiJid(jids, requested)
-    remaining = requested - fetched.length
-    batchCount++
+    const newFetched = store.getMessagesMultiJid(jids, requested)
+    if (newFetched.length === fetched.length) {
+      console.log('No more messages available from WhatsApp.')
+      break
+    }
+    fetched = newFetched
   }
 
   const messages = store.getMessagesMultiJid(jids, requested)
