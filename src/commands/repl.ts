@@ -1,7 +1,7 @@
 import * as readline from 'readline'
 import { connect } from '../client/connection.js'
 import { MessageStore, printMessages } from '../messages/reader.js'
-import { sendText, sendMedia, sendReply, sendReaction } from '../messages/sender.js'
+import { sendText, sendMedia, sendReply, sendReaction, editMessage, deleteMessage, forwardMessage } from '../messages/sender.js'
 import { phoneToJid } from '../utils/phone.js'
 import { formatMessage, formatGroupMessage, formatGroupMessageRepl } from '../utils/format.js'
 import { listGroups, resolveGroup } from '../utils/groups.js'
@@ -232,6 +232,72 @@ async function handleReplCommand(
       break
     }
 
+    case 'edit': {
+      // edit <phone> <shortId> "new text"
+      const phone = args[1]
+      const shortId = args[2]
+      const newText = args[3]
+      if (!phone || !shortId || !newText) {
+        console.log('Usage: edit <phone> <messageId> "new text"')
+        return
+      }
+      const jid = phoneToJid(phone)
+      const msg = store.findByShortId(jid, shortId)
+      const msgId = msg?.key.id || shortId
+      await editMessage(sock, jid, msgId, newText)
+      break
+    }
+
+    case 'delete': {
+      // delete <phone> <shortId>
+      const phone = args[1]
+      const shortId = args[2]
+      if (!phone || !shortId) {
+        console.log('Usage: delete <phone> <messageId>')
+        return
+      }
+      const jid = phoneToJid(phone)
+      const msg = store.findByShortId(jid, shortId)
+      if (msg) {
+        await deleteMessage(sock, jid, msg.key.id!, msg.key.fromMe || false)
+      } else {
+        await deleteMessage(sock, jid, shortId, true)
+      }
+      break
+    }
+
+    case 'forward': {
+      // forward <from-phone> <shortId> <to-phone-or-group>
+      const fromPhone = args[1]
+      const shortId = args[2]
+      const target = args[3]
+      if (!fromPhone || !shortId || !target) {
+        console.log('Usage: forward <from-phone> <messageId> <to-phone-or-group>')
+        return
+      }
+      const fromJid = phoneToJid(fromPhone)
+      const msg = store.findByShortId(fromJid, shortId)
+      if (!msg) {
+        console.error(`Message "${shortId}" not found. Run "read" first.`)
+        return
+      }
+      let targetJid: string
+      if (target.endsWith('@g.us') || target.endsWith('@s.whatsapp.net')) {
+        targetJid = target
+      } else if (target.match(/^\+?\d+$/)) {
+        targetJid = phoneToJid(target)
+      } else {
+        try {
+          targetJid = await resolveGroup(sock, target)
+        } catch (e: any) {
+          console.error(e.message)
+          return
+        }
+      }
+      await forwardMessage(sock, targetJid, msg)
+      break
+    }
+
     case 'help':
       console.log(`
 Commands:
@@ -240,6 +306,9 @@ Commands:
   read <phone> [--last N]           Read messages (default: last 20)
   react <phone> <msgId> <emoji>     React to a message
   reply <phone> <msgId> "text"      Reply to a message
+  edit <phone> <msgId> "new text"   Edit a sent message
+  delete <phone> <msgId>            Delete a message for everyone
+  forward <from> <msgId> <to>       Forward a message
   groups                            List all groups
   send-group "name" "message"       Send to a group
   read-group "name" [--last N]      Read group messages

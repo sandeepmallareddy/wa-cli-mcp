@@ -93,3 +93,54 @@ export async function sendReaction(
   })
   console.log('Reaction sent.')
 }
+
+/**
+ * Edit a previously sent message.
+ */
+export async function editMessage(
+  sock: WASocket,
+  jid: string,
+  messageId: string,
+  newText: string
+): Promise<void> {
+  await sock.sendMessage(jid, {
+    text: newText,
+    edit: {
+      remoteJid: jid,
+      id: messageId,
+      fromMe: true,
+    },
+  })
+  console.log('Message edited.')
+}
+
+/**
+ * Delete a message for everyone.
+ */
+export async function deleteMessage(
+  sock: WASocket,
+  jid: string,
+  messageId: string,
+  fromMe: boolean
+): Promise<void> {
+  await sock.sendMessage(jid, {
+    delete: {
+      remoteJid: jid,
+      id: messageId,
+      fromMe,
+    },
+  })
+  console.log('Message deleted.')
+}
+
+/**
+ * Forward a message to another JID.
+ */
+export async function forwardMessage(
+  sock: WASocket,
+  targetJid: string,
+  msg: WAMessage
+): Promise<void> {
+  await sock.sendMessage(targetJid, { forward: msg })
+  console.log('Message forwarded.')
+}

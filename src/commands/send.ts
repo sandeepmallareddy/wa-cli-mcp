@@ -1,6 +1,6 @@
 import { connect } from '../client/connection.js'
 import { MessageStore } from '../messages/reader.js'
-import { sendText, sendMedia, sendReply, sendReaction } from '../messages/sender.js'
+import { sendText, sendMedia, sendReply, sendReaction, editMessage, deleteMessage } from '../messages/sender.js'
 import { phoneToJid } from '../utils/phone.js'
 
 interface SendOptions {
@@ -8,6 +8,8 @@ interface SendOptions {
   message?: string    // caption for media
   reply?: string      // short message ID to reply to
   react?: string      // short message ID to react to
+  edit?: string       // short message ID to edit
+  delete?: string     // short message ID to delete
 }
 
 export async function sendCommand(
@@ -23,13 +25,26 @@ export async function sendCommand(
     onHistorySync: (event) => store.handleHistorySync(event),
   })
 
-  // Wait briefly for history sync so we can find messages for --reply/--react
-  if (opts.reply || opts.react) {
+  // Wait briefly for history sync so we can find messages
+  if (opts.reply || opts.react || opts.edit || opts.delete) {
     await new Promise((r) => setTimeout(r, 3000))
   }
 
   try {
-    if (opts.react && textOrEmoji) {
+    if (opts.edit && textOrEmoji) {
+      // Edit a message: wa send +91... --edit <id> "new text"
+      const targetMsg = store.findByShortId(jid, opts.edit)
+      const msgId = targetMsg?.key.id || opts.edit
+      await editMessage(sock, jid, msgId, textOrEmoji)
+    } else if (opts.delete) {
+      // Delete a message: wa send +91... --delete <id>
+      const targetMsg = store.findByShortId(jid, opts.delete)
+      if (targetMsg) {
+        await deleteMessage(sock, jid, targetMsg.key.id!, targetMsg.key.fromMe || false)
+      } else {
+        await deleteMessage(sock, jid, opts.delete, true)
+      }
+    } else if (opts.react && textOrEmoji) {
       // React to a message: wa send +91... --react <id> "👍"
       const targetMsg = store.findByShortId(jid, opts.react)
       if (!targetMsg) {

@@ -9,6 +9,7 @@ import { replCommand } from './commands/repl.js'
 import { groupsCommand } from './commands/groups.js'
 import { sendGroupCommand } from './commands/send-group.js'
 import { readGroupCommand } from './commands/read-group.js'
+import { forwardCommand } from './commands/forward.js'
 
 const program = new Command()
 
@@ -31,6 +32,8 @@ program
   .option('-m, --message <caption>', 'Caption for media file')
   .option('--reply <messageId>', 'Reply to a message (short ID from "wa read")')
   .option('--react <messageId>', 'React to a message (short ID from "wa read")')
+  .option('--edit <messageId>', 'Edit a sent message (short ID)')
+  .option('--delete <messageId>', 'Delete a message for everyone (short ID)')
   .action(sendCommand)
 
 program
@@ -67,5 +70,13 @@ program
   .option('--last <count>', 'Number of messages to show', '20')
   .option('--media', 'Download media files to ./downloads/')
   .action(readGroupCommand)
+
+program
+  .command('forward')
+  .description('Forward a message to another contact or group')
+  .argument('<from-phone>', 'Source phone number (where the message is)')
+  .argument('<message-id>', 'Short message ID to forward')
+  .argument('<to>', 'Target phone number or group name')
+  .action(forwardCommand)
 
 program.parse()
