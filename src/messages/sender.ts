@@ -1,8 +1,10 @@
 import type { WASocket, WAMessage } from 'baileys'
-import { readFile, realpath } from 'fs/promises'
+import { readFile, realpath, stat } from 'fs/promises'
 import mime from 'mime-types'
 import path from 'path'
 import os from 'os'
+
+const MAX_FILE_SIZE = 64 * 1024 * 1024 // 64MB — WhatsApp's media limit
 
 /** Blocked filenames that should never be sent */
 const BLOCKED_FILES = [
@@ -72,6 +74,10 @@ export async function sendMedia(
   caption?: string
 ): Promise<void> {
   const absolutePath = await validateFilePath(filePath)
+  const fileStats = await stat(absolutePath)
+  if (fileStats.size > MAX_FILE_SIZE) {
+    throw new Error(`File too large (${Math.round(fileStats.size / 1024 / 1024)}MB). Maximum is 64MB.`)
+  }
   const mimeType = mime.lookup(absolutePath) || 'application/octet-stream'
   const buffer = await readFile(absolutePath)
   const fileName = path.basename(absolutePath)

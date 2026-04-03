@@ -28,6 +28,7 @@ import { listGroups, resolveGroup } from './utils/groups.js'
 const MAX_MESSAGES = 10_000
 const MAX_NOTIFICATIONS = 500
 const MAX_READ_LIMIT = 100
+const MAX_LID_CACHE = 10_000
 
 // --- State ---
 let sock: WASocket
@@ -116,6 +117,12 @@ async function learnLidMapping(jid: string): Promise<void> {
     if (repo?.lidMapping?.getPNForLID) {
       const pn = await repo.lidMapping.getPNForLID(jid)
       if (pn) {
+        if (lidToPhone.size >= MAX_LID_CACHE) {
+          const firstKey = lidToPhone.keys().next().value!
+          const firstVal = lidToPhone.get(firstKey)
+          lidToPhone.delete(firstKey)
+          if (firstVal) phoneToLid.delete(firstVal)
+        }
         lidToPhone.set(jid, pn)
         phoneToLid.set(pn, jid)
       }

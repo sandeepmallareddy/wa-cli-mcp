@@ -1,0 +1,11 @@
+{
+  "contacts": [
+    { "phone": "+1234567890", "name": "Alice", "context": "co-founder, handles operations and partnerships" },
+    { "phone": "+9876543210", "name": "Bob", "context": "finance lead, manages payments and invoicing" },
+    { "phone": "+1122334455", "name": "Carol", "context": "engineering, works on the mobile app" }
+  ],
+  "groups": [
+    { "name": "Team Updates", "context": "daily standup updates and blockers" },
+    { "name": "Customer Support", "context": "escalated customer issues that need attention" }
+  ]
+}

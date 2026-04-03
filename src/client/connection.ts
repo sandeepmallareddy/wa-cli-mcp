@@ -35,6 +35,9 @@ export interface ConnectOptions {
  * Create a Baileys socket, handle auth + reconnection.
  * Returns a promise that resolves with the socket once connected.
  */
+let reconnectAttempt = 0
+const MAX_RECONNECT_ATTEMPTS = 10
+
 export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
   return new Promise(async (resolve, reject) => {
     const { state, saveCreds } = await getAuthState()
@@ -64,10 +67,18 @@ export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
           console.error('Logged out. Run "wa auth" to re-authenticate.')
           reject(new Error('logged_out'))
         } else {
-          // Reconnect
-          connect(opts).then(resolve).catch(reject)
+          // Reconnect with exponential backoff
+          reconnectAttempt++
+          if (reconnectAttempt > MAX_RECONNECT_ATTEMPTS) {
+            reject(new Error(`Failed to reconnect after ${MAX_RECONNECT_ATTEMPTS} attempts`))
+            return
+          }
+          const delay = Math.min(1000 * Math.pow(2, reconnectAttempt - 1), 60000)
+          console.error(`Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempt}/${MAX_RECONNECT_ATTEMPTS})...`)
+          setTimeout(() => connect(opts).then(resolve).catch(reject), delay)
         }
       } else if (connection === 'open') {
+        reconnectAttempt = 0
         opts.onOpen?.()
         resolve(sock)
       }

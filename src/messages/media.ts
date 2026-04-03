@@ -14,7 +14,7 @@ export async function downloadMedia(msg: WAMessage): Promise<string | null> {
   const mediaType = getMediaType(msg)
   if (!mediaType) return null
 
-  mkdirSync(DOWNLOADS_DIR, { recursive: true })
+  mkdirSync(DOWNLOADS_DIR, { recursive: true, mode: 0o700 })
 
   const timestamp = msg.messageTimestamp
     ? Number(msg.messageTimestamp)
