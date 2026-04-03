@@ -308,7 +308,7 @@ This tool uses [Baileys](https://github.com/WhiskeySockets/Baileys), a TypeScrip
 - **Messages:** Sent via Baileys' `sendMessage` API. Incoming messages arrive through WebSocket events (`messages.upsert`).
 - **Media:** Files are read from disk and sent as buffers. Received media is downloaded via `downloadMediaMessage` and saved to `~/.config/wa-cli-mcp/downloads/`.
 - **Groups:** Group metadata is fetched via `groupFetchAllParticipating`. Group messages use `@g.us` JIDs instead of `@s.whatsapp.net`.
-- **LID Mapping:** WhatsApp uses Linked IDs (LID) for incoming messages. The MCP server automatically resolves LID <-> phone number mappings using Baileys' signal repository.
+- **LID Mapping:** WhatsApp uses Linked IDs (LID) for incoming messages. Both the CLI and MCP server automatically resolve LID <-> phone number mappings using a two-stage approach: forward lookup (`getLIDForPN`) and reverse lookup (scanning stored JIDs with `getPNForLID`).
 
 ## Security
 
@@ -352,7 +352,9 @@ Check [Baileys issues](https://github.com/WhiskeySockets/Baileys/issues) for the
 
 ### "No messages found" on `read`
 
-Both the CLI `read` command and the MCP `whatsapp_read` tool return messages from an in-memory store. On first connection, `syncFullHistory` is enabled so WhatsApp will sync your chat history (similar to WhatsApp Web). The sync can take a few seconds to complete. If you need older messages beyond what was synced, use `wa fetch-history +1234567890 --last 200` (CLI) or the `whatsapp_fetch_history` MCP tool (up to 500 messages, fetched in batches of 50). Note that `whatsapp_read` does **not** require a subscription — subscriptions only affect `whatsapp_get_notifications`.
+Both the CLI `read` command and the MCP `whatsapp_read` tool return messages from an in-memory store. On first connection, `syncFullHistory` is enabled so WhatsApp will sync your chat history (similar to WhatsApp Web). The CLI waits for sync to stabilize before showing results. If you need older messages beyond what was synced, use `wa fetch-history +1234567890 --last 200` (CLI) or the `whatsapp_fetch_history` MCP tool (up to 500 messages, fetched in batches of 50). Note that `whatsapp_read` does **not** require a subscription — subscriptions only affect `whatsapp_get_notifications`.
+
+WhatsApp uses LID (Linked IDs) internally, so messages may be stored under a different JID than the phone number. Both CLI and MCP handle this automatically via two-stage LID resolution.
 
 ### MCP server shows "Connection Closed"
 
