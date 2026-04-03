@@ -332,7 +332,13 @@ cd /path/to/whatsapp-bailey
 npx tsx src/index.ts auth
 ```
 
-2. **Add to your Claude Code settings** (`~/.claude/settings.json`):
+2. **Add the MCP server** (one command):
+
+```bash
+claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/whatsapp-bailey/src/mcp-server.ts
+```
+
+Or manually add to `~/.claude/settings.json`:
 
 ```json
 {
@@ -341,17 +347,6 @@ npx tsx src/index.ts auth
       "command": "npx",
       "args": ["tsx", "/absolute/path/to/whatsapp-bailey/src/mcp-server.ts"]
     }
-  }
-}
-```
-
-Or add to a project-level `.mcp.json`:
-
-```json
-{
-  "wa-cli-mcp": {
-    "command": "npx",
-    "args": ["tsx", "/absolute/path/to/whatsapp-bailey/src/mcp-server.ts"]
   }
 }
 ```
