@@ -453,7 +453,57 @@ server.registerTool(
 
 // --- Startup ---
 
+// --- Lock file to prevent multiple instances ---
+import { writeFileSync, readFileSync, unlinkSync, existsSync, mkdirSync } from 'fs'
+import path from 'path'
+import os from 'os'
+
+const LOCK_DIR = path.join(os.homedir(), '.config', 'wa-cli-mcp')
+const LOCK_FILE = path.join(LOCK_DIR, 'mcp-server.lock')
+
+function acquireLock() {
+  mkdirSync(LOCK_DIR, { recursive: true })
+
+  // Check if another instance is running
+  if (existsSync(LOCK_FILE)) {
+    try {
+      const oldPid = parseInt(readFileSync(LOCK_FILE, 'utf-8').trim(), 10)
+      if (oldPid && oldPid !== process.pid) {
+        // Check if that process is still alive
+        try {
+          process.kill(oldPid, 0) // signal 0 = just check if alive
+          // It's alive — kill it to avoid dual connections
+          process.stderr.write(`[wa-cli-mcp] Killing previous instance (PID ${oldPid}) to avoid dual connections.\n`)
+          process.kill(oldPid, 'SIGTERM')
+        } catch {
+          // Process is already dead — stale lock file
+        }
+      }
+    } catch {
+      // Can't read lock file — overwrite it
+    }
+  }
+
+  // Write our PID
+  writeFileSync(LOCK_FILE, String(process.pid))
+
+  // Clean up on exit
+  const cleanup = () => {
+    try {
+      const currentPid = readFileSync(LOCK_FILE, 'utf-8').trim()
+      if (currentPid === String(process.pid)) {
+        unlinkSync(LOCK_FILE)
+      }
+    } catch {}
+  }
+  process.on('exit', cleanup)
+  process.on('SIGTERM', () => { cleanup(); process.exit(0) })
+  process.on('SIGINT', () => { cleanup(); process.exit(0) })
+}
+
 async function main() {
+  acquireLock()
+
   sock = await connect({
     onReconnect: (newSock) => {
       sock = newSock
