@@ -99,7 +99,7 @@ Messages display like this:
 
 The 8-character code in parentheses (e.g., `a1b2c3d4`) is the **message ID** — you'll need it for reply, react, edit, delete, and forward.
 
-> **Note:** `read` shows messages received during the current session. For real-time message viewing, use `repl` mode.
+> **Note:** `read` only shows messages received after the CLI connects. WhatsApp may sync some recent history on connection, but this is unreliable and varies. For real-time message viewing, use `repl` mode.
 
 ### Reply, React, Edit, Delete, Forward
 
@@ -185,7 +185,7 @@ claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/wa-cli-mcp/src/mcp-server
 | `whatsapp_me` | Get linked account info (phone number, name) |
 | `whatsapp_send` | Send text message |
 | `whatsapp_send_media` | Send image/video/doc/voice note |
-| `whatsapp_read` | Read messages from a contact |
+| `whatsapp_read` | Read messages from a contact (only messages received after the MCP server started; does not require a subscription) |
 | `whatsapp_reply` | Quote-reply to a message |
 | `whatsapp_react` | React with emoji |
 | `whatsapp_edit` | Edit a sent message |
@@ -334,7 +334,7 @@ Check [Baileys issues](https://github.com/WhiskeySockets/Baileys/issues) for the
 
 ### "No messages found" on `read`
 
-The `read` command only shows messages received during the current session. WhatsApp's history sync doesn't always fire on reconnection. Use `wa repl` for real-time messages, or the MCP server's subscription system.
+Both the CLI `read` command and the MCP `whatsapp_read` tool only return messages from an in-memory store that is populated after connection. WhatsApp may sync some recent history when the connection is first established, but this is unreliable and the depth varies. Messages sent before the CLI/MCP server was running are generally not available. Note that `whatsapp_read` does **not** require a subscription — subscriptions only affect `whatsapp_get_notifications`. For continuous real-time messages, use `wa repl` or the MCP subscription system.
 
 ### MCP server shows "Connection Closed"
 
