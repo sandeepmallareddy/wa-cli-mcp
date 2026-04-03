@@ -9,6 +9,9 @@ import P from 'pino'
 import { createRequire } from 'module'
 import { rmSync } from 'fs'
 import path from 'path'
+import os from 'os'
+
+const AUTH_DIR = path.join(os.homedir(), '.config', 'whatsapp-bailey', 'auth_state')
 
 const require = createRequire(import.meta.url)
 const qrcode = require('qrcode-terminal')
@@ -57,7 +60,7 @@ export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
       if (connection === 'close') {
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
         if (statusCode === DisconnectReason.loggedOut) {
-          rmSync(path.join(process.cwd(), 'auth_state'), { recursive: true, force: true })
+          rmSync(AUTH_DIR, { recursive: true, force: true })
           console.error('Logged out. Run "wa auth" to re-authenticate.')
           reject(new Error('logged_out'))
         } else {

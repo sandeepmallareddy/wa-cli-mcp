@@ -5,6 +5,9 @@
 export function phoneToJid(phone: string): string {
   // Strip everything except digits
   const digits = phone.replace(/\D/g, '')
+  if (digits.length < 7) {
+    throw new Error(`Invalid phone number: "${phone}" (must have at least 7 digits)`)
+  }
   return `${digits}@s.whatsapp.net`
 }
 

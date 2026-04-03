@@ -1,9 +1,10 @@
 import { downloadMediaMessage, type WAMessage } from 'baileys'
 import { createWriteStream, mkdirSync } from 'fs'
 import path from 'path'
+import os from 'os'
 import { getMediaType } from '../utils/format.js'
 
-const DOWNLOADS_DIR = path.join(process.cwd(), 'downloads')
+const DOWNLOADS_DIR = path.join(os.homedir(), '.config', 'whatsapp-bailey', 'downloads')
 
 /**
  * Download media from a message and save to downloads/ folder.

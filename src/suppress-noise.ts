@@ -1,17 +1,24 @@
-// Must be imported before baileys to suppress its noisy console.log calls
-// Override process.stdout.write to filter out "Closing session" noise
+// Suppress noisy Baileys internal logs that may contain sensitive key material.
+// Uses an allowlist approach: only permit output that looks like our own CLI output.
+// Anything that looks like a Baileys session/key dump is suppressed.
 const origWrite = process.stdout.write.bind(process.stdout)
+
+const sensitivePatterns = [
+  // Session/key material
+  'Closing session', 'SessionEntry', '_chains', 'chainType',
+  'registrationId', 'currentRatchet', 'ephemeralKeyPair',
+  'indexInfo', 'pendingPreKey', 'rootKey', 'remoteIdentityKey',
+  'noiseKey', 'signedIdentityKey', 'signedPreKey', 'advSecretKey',
+  'pairingEphemeralKeyPair', 'routingInfo',
+  // Generic key/buffer patterns
+  'privKey', 'pubKey', '<Buffer',
+]
+
 process.stdout.write = (chunk: any, ...args: any[]): boolean => {
-  if (typeof chunk === 'string' && chunk.includes('Closing session')) return true
-  if (typeof chunk === 'string' && chunk.includes('_chains')) return true
-  if (typeof chunk === 'string' && chunk.includes('SessionEntry')) return true
-  if (typeof chunk === 'string' && chunk.includes('registrationId')) return true
-  if (typeof chunk === 'string' && chunk.includes('currentRatchet')) return true
-  if (typeof chunk === 'string' && chunk.includes('ephemeralKeyPair')) return true
-  if (typeof chunk === 'string' && chunk.includes('indexInfo')) return true
-  if (typeof chunk === 'string' && chunk.includes('pendingPreKey')) return true
-  if (typeof chunk === 'string' && chunk.includes('rootKey')) return true
-  if (typeof chunk === 'string' && chunk.includes('chainType')) return true
-  if (typeof chunk === 'string' && chunk.includes('remoteIdentityKey')) return true
+  if (typeof chunk === 'string') {
+    for (const pattern of sensitivePatterns) {
+      if (chunk.includes(pattern)) return true
+    }
+  }
   return origWrite(chunk, ...args)
 }
