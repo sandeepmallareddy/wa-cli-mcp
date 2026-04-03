@@ -202,7 +202,14 @@ claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/wa-cli-mcp/src/mcp-server
 
 The subscription system lets Claude monitor specific contacts and groups for incoming messages.
 
-**Create a watch list** at `~/.config/wa-cli-mcp/watch.json`:
+**Create a watch list** by copying the example and editing it:
+
+```bash
+mkdir -p ~/.config/wa-cli-mcp
+cp examples/watch.json.example ~/.config/wa-cli-mcp/watch.json
+```
+
+Then edit `~/.config/wa-cli-mcp/watch.json` with your contacts and groups:
 
 ```json
 {
