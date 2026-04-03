@@ -1,0 +1,63 @@
+import makeWASocket, {
+  DisconnectReason,
+  makeCacheableSignalKeyStore,
+  type WASocket,
+  type BaileysEventMap,
+} from '@whiskeysockets/baileys'
+import { Boom } from '@hapi/boom'
+import P from 'pino'
+import { getAuthState } from './auth.js'
+
+const logger = P({ level: 'silent' })
+
+export interface ConnectOptions {
+  /** Called when connection is open */
+  onOpen?: () => void
+  /** Called on each messages.upsert event */
+  onMessages?: (event: BaileysEventMap['messages.upsert']) => void
+  /** If true, keep the process alive (for REPL mode) */
+  keepAlive?: boolean
+}
+
+/**
+ * Create a Baileys socket, handle auth + reconnection.
+ * Returns a promise that resolves with the socket once connected.
+ */
+export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
+  return new Promise(async (resolve, reject) => {
+    const { state, saveCreds } = await getAuthState()
+
+    const sock = makeWASocket({
+      auth: {
+        creds: state.creds,
+        keys: makeCacheableSignalKeyStore(state.keys, logger),
+      },
+      logger,
+      printQRInTerminal: true,
+    })
+
+    sock.ev.on('creds.update', saveCreds)
+
+    sock.ev.on('connection.update', (update) => {
+      const { connection, lastDisconnect } = update
+
+      if (connection === 'close') {
+        const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
+        if (statusCode === DisconnectReason.loggedOut) {
+          console.error('Logged out. Run "wa auth" to re-authenticate.')
+          reject(new Error('logged_out'))
+        } else {
+          // Reconnect
+          connect(opts).then(resolve).catch(reject)
+        }
+      } else if (connection === 'open') {
+        opts.onOpen?.()
+        resolve(sock)
+      }
+    })
+
+    if (opts.onMessages) {
+      sock.ev.on('messages.upsert', opts.onMessages)
+    }
+  })
+}
