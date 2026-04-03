@@ -16,6 +16,13 @@ export class MessageStore {
   }
 
   /**
+   * Handle a messaging-history.set event — store synced messages.
+   */
+  handleHistorySync(event: BaileysEventMap['messaging-history.set']): void {
+    this.messages.push(...event.messages)
+  }
+
+  /**
    * Get messages for a specific JID, sorted by timestamp ascending.
    */
   getMessages(jid: string, limit: number): WAMessage[] {

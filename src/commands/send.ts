@@ -20,6 +20,7 @@ export async function sendCommand(
 
   const sock = await connect({
     onMessages: (event) => store.handleUpsert(event),
+    onHistorySync: (event) => store.handleHistorySync(event),
   })
 
   // Wait briefly for history sync so we can find messages for --reply/--react

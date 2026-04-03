@@ -13,6 +13,7 @@ export async function replCommand(): Promise<void> {
 
   const sock = await connect({
     onOpen: () => console.log('Connected! Type "help" for commands.\n'),
+    onHistorySync: (event) => store.handleHistorySync(event),
     onMessages: (event) => {
       store.handleUpsert(event)
 

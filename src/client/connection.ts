@@ -21,6 +21,8 @@ export interface ConnectOptions {
   onOpen?: () => void
   /** Called on each messages.upsert event */
   onMessages?: (event: BaileysEventMap['messages.upsert']) => void
+  /** Called on history sync (messaging-history.set) */
+  onHistorySync?: (event: BaileysEventMap['messaging-history.set']) => void
   /** If true, keep the process alive (for REPL mode) */
   keepAlive?: boolean
 }
@@ -69,6 +71,10 @@ export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
 
     if (opts.onMessages) {
       sock.ev.on('messages.upsert', opts.onMessages)
+    }
+
+    if (opts.onHistorySync) {
+      sock.ev.on('messaging-history.set', opts.onHistorySync)
     }
   })
 }

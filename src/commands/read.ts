@@ -19,16 +19,17 @@ export async function readCommand(
 
   const sock = await connect({
     onMessages: (event) => store.handleUpsert(event),
+    onHistorySync: (event) => store.handleHistorySync(event),
   })
 
-  // Wait for history sync to populate messages
+  // Wait for message sync
   await new Promise((r) => setTimeout(r, 5000))
 
   const messages = store.getMessages(jid, limit)
 
   if (messages.length === 0) {
-    console.log('No messages found for this contact.')
-    console.log('Messages may take a moment to sync. Try increasing wait time or check the number.')
+    console.log('No messages found for this contact in this session.')
+    console.log('Note: Historical messages require an active session. Use "wa repl" to see messages in real-time.')
   } else {
     await printMessages(messages, opts.media || false)
   }
