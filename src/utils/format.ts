@@ -106,3 +106,66 @@ export function formatMessage(
 
   return `[${ts}] (${id}) ${sender}: [unsupported message type]`
 }
+
+/**
+ * Format a group message for terminal display.
+ * Shows participant display name and phone number.
+ * Returns: "[2026-04-03 10:15] (a1b2c3d4) Sandeep (+919876543210): Hello"
+ */
+export function formatGroupMessage(
+  msg: WAMessage,
+  mediaPath?: string
+): string {
+  const ts = msg.messageTimestamp
+    ? formatTimestamp(Number(msg.messageTimestamp))
+    : '???'
+  const id = shortMessageId(msg.key.id || '????????')
+
+  let sender: string
+  if (msg.key.fromMe) {
+    sender = 'You'
+  } else {
+    const participant = msg.key.participant || ''
+    const phone = jidToPhone(participant)
+    const name = msg.pushName
+    sender = name ? `${name} (${phone})` : phone
+  }
+
+  // Reaction message
+  const reaction = msg.message?.reactionMessage
+  if (reaction) {
+    return `[${ts}] (${id}) ${sender}: ${reaction.text} (reaction)`
+  }
+
+  // Media message
+  const mediaType = getMediaType(msg)
+  if (mediaType) {
+    const caption = getMediaCaption(msg)
+    const pathInfo = mediaPath ? ` (saved: ${mediaPath})` : ''
+    const captionInfo = caption ? ` "${caption}"` : ''
+    return `[${ts}] (${id}) ${sender}: 📎 ${mediaType}${captionInfo}${pathInfo}`
+  }
+
+  // Text message
+  const text = extractText(msg)
+  if (text) {
+    return `[${ts}] (${id}) ${sender}: ${text}`
+  }
+
+  return `[${ts}] (${id}) ${sender}: [unsupported message type]`
+}
+
+/**
+ * Format an incoming group message for REPL display with group name prefix.
+ */
+export function formatGroupMessageRepl(
+  msg: WAMessage,
+  groupName: string
+): string {
+  const participant = msg.key.participant || ''
+  const phone = jidToPhone(participant)
+  const name = msg.pushName
+  const sender = name ? `${name} (${phone})` : phone
+  const text = extractText(msg) || getMediaType(msg) || '[unsupported]'
+  return `[${groupName}] ${sender}: ${text}`
+}

@@ -3,8 +3,12 @@ import { connect } from '../client/connection.js'
 import { MessageStore, printMessages } from '../messages/reader.js'
 import { sendText, sendMedia, sendReply, sendReaction } from '../messages/sender.js'
 import { phoneToJid } from '../utils/phone.js'
-import { formatMessage } from '../utils/format.js'
+import { formatMessage, formatGroupMessage, formatGroupMessageRepl } from '../utils/format.js'
+import { listGroups, resolveGroup } from '../utils/groups.js'
 import type { WASocket } from 'baileys'
+
+// Cache group names for REPL display
+const groupNames = new Map<string, string>()
 
 export async function replCommand(): Promise<void> {
   const store = new MessageStore()
@@ -21,15 +25,26 @@ export async function replCommand(): Promise<void> {
       if (event.type === 'notify') {
         for (const msg of event.messages) {
           if (!msg.key.fromMe) {
-            // Clear current line, print message, re-show prompt
             process.stdout.write('\r\x1b[K')
-            console.log(formatMessage(msg))
+            const jid = msg.key.remoteJid || ''
+            if (jid.endsWith('@g.us')) {
+              const name = groupNames.get(jid) || jid
+              console.log(formatGroupMessageRepl(msg, name))
+            } else {
+              console.log(formatMessage(msg))
+            }
             rl.prompt(true)
           }
         }
       }
     },
   })
+
+  // Cache group names for display
+  try {
+    const groups = await listGroups(sock)
+    for (const g of groups) groupNames.set(g.jid, g.subject)
+  } catch {}
 
   const rl = readline.createInterface({
     input: process.stdin,
@@ -152,6 +167,71 @@ async function handleReplCommand(
       break
     }
 
+    case 'groups': {
+      const groups = await listGroups(sock)
+      if (groups.length === 0) {
+        console.log('No groups found.')
+      } else {
+        for (const g of groups) {
+          console.log(`  ${g.subject} (${g.memberCount} members) — ${g.jid}`)
+        }
+      }
+      break
+    }
+
+    case 'send-group': {
+      const name = args[1]
+      if (!name) {
+        console.log('Usage: send-group "group name" "message" OR send-group "group name" --file <path>')
+        return
+      }
+      let jid: string
+      try {
+        jid = await resolveGroup(sock, name)
+      } catch (e: any) {
+        console.error(e.message)
+        return
+      }
+      const fileIdx = args.indexOf('--file')
+      if (fileIdx !== -1) {
+        await sendMedia(sock, jid, args[fileIdx + 1])
+      } else {
+        const text = args[2]
+        if (!text) {
+          console.log('Usage: send-group "group name" "message"')
+          return
+        }
+        await sendText(sock, jid, text)
+      }
+      break
+    }
+
+    case 'read-group': {
+      const name = args[1]
+      if (!name) {
+        console.log('Usage: read-group "group name" [--last N]')
+        return
+      }
+      let jid: string
+      try {
+        jid = await resolveGroup(sock, name)
+      } catch (e: any) {
+        console.error(e.message)
+        return
+      }
+      const lastIdx = args.indexOf('--last')
+      const limit = lastIdx !== -1 ? parseInt(args[lastIdx + 1], 10) : 20
+      const messages = store.getMessages(jid, limit)
+      if (messages.length === 0) {
+        console.log('No messages found for this group.')
+      } else {
+        for (const msg of messages) {
+          console.log(formatGroupMessage(msg))
+        }
+      }
+      break
+    }
+
     case 'help':
       console.log(`
 Commands:
@@ -160,6 +240,9 @@ Commands:
   read <phone> [--last N]           Read messages (default: last 20)
   react <phone> <msgId> <emoji>     React to a message
   reply <phone> <msgId> "text"      Reply to a message
+  groups                            List all groups
+  send-group "name" "message"       Send to a group
+  read-group "name" [--last N]      Read group messages
   help                              Show this help
   exit                              Disconnect and exit
 `.trim())

@@ -6,6 +6,9 @@ import { authCommand } from './commands/auth.js'
 import { sendCommand } from './commands/send.js'
 import { readCommand } from './commands/read.js'
 import { replCommand } from './commands/repl.js'
+import { groupsCommand } from './commands/groups.js'
+import { sendGroupCommand } from './commands/send-group.js'
+import { readGroupCommand } from './commands/read-group.js'
 
 const program = new Command()
 
@@ -42,5 +45,27 @@ program
   .command('repl')
   .description('Interactive mode — stay connected and chat')
   .action(replCommand)
+
+program
+  .command('groups')
+  .description('List all WhatsApp groups')
+  .action(groupsCommand)
+
+program
+  .command('send-group')
+  .description('Send a message to a group')
+  .argument('<group>', 'Group name (substring match) or JID')
+  .argument('[text]', 'Text message')
+  .option('--file <path>', 'Send a media file')
+  .option('-m, --message <caption>', 'Caption for media file')
+  .action(sendGroupCommand)
+
+program
+  .command('read-group')
+  .description('Read messages from a group')
+  .argument('<group>', 'Group name (substring match) or JID')
+  .option('--last <count>', 'Number of messages to show', '20')
+  .option('--media', 'Download media files to ./downloads/')
+  .action(readGroupCommand)
 
 program.parse()
