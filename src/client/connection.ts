@@ -28,6 +28,8 @@ export interface ConnectOptions {
   onMessages?: (event: BaileysEventMap['messages.upsert']) => void
   /** Called on history sync (messaging-history.set) */
   onHistorySync?: (event: BaileysEventMap['messaging-history.set']) => void
+  /** Called with the new socket after a reconnection (so callers can update their reference) */
+  onReconnect?: (newSock: WASocket) => void
   /** If true, keep the process alive (for REPL mode) */
   keepAlive?: boolean
 }
@@ -78,7 +80,12 @@ export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
           }
           const delay = Math.min(1000 * Math.pow(2, reconnectAttempt - 1), 60000)
           console.error(`Reconnecting in ${delay / 1000}s (attempt ${reconnectAttempt}/${MAX_RECONNECT_ATTEMPTS})...`)
-          setTimeout(() => connect(opts).then(resolve).catch(reject), delay)
+          setTimeout(() => {
+            connect(opts).then((newSock) => {
+              opts.onReconnect?.(newSock)
+              resolve(newSock)
+            }).catch(reject)
+          }, delay)
         }
       } else if (connection === 'open') {
         reconnectAttempt = 0

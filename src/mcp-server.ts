@@ -469,6 +469,10 @@ server.registerTool(
 
 async function main() {
   sock = await connect({
+    onReconnect: (newSock) => {
+      sock = newSock
+      process.stderr.write('[wa-cli-mcp] Reconnected. Socket updated.\n')
+    },
     onMessages: (event) => {
       store.handleUpsert(event)
 
