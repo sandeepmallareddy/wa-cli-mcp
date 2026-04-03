@@ -257,6 +257,7 @@ wa-cli-mcp/
 │   │   ├── auth.ts           # wa auth
 │   │   ├── send.ts           # wa send (text, reply, react, edit, delete)
 │   │   ├── read.ts           # wa read
+│   │   ├── fetch-history.ts  # wa fetch-history (older messages in batches)
 │   │   ├── repl.ts           # wa repl (interactive mode)
 │   │   ├── groups.ts         # wa groups
 │   │   ├── send-group.ts     # wa send-group
@@ -277,6 +278,11 @@ wa-cli-mcp/
 ├── examples/
 │   ├── CLAUDE.md.example     # Sample CLAUDE.md with WhatsApp monitoring section
 │   └── watch.json.example    # Sample watch list config
+├── tests/
+│   ├── unit/                 # Pure function tests (phone, format, reader, validation)
+│   ├── functional/           # Mocked WASocket tests (sender, groups, MCP tools)
+│   └── integration/          # Real WhatsApp connection tests
+├── vitest.config.ts
 ├── package.json
 ├── package-lock.json
 ├── tsconfig.json
@@ -298,6 +304,7 @@ wa-cli-mcp/
 This tool uses [Baileys](https://github.com/WhiskeySockets/Baileys), a TypeScript library that connects directly to WhatsApp's servers using the **Linked Devices** protocol (the same one WhatsApp Web uses). No browser automation — it's a direct WebSocket connection.
 
 - **Authentication:** When you scan the QR code, WhatsApp links your phone to this CLI as a "linked device". Session keys are saved in `~/.config/wa-cli-mcp/auth_state/` with owner-only permissions (700/600).
+- **History Sync:** `syncFullHistory` is enabled with a desktop browser profile, so WhatsApp syncs your full chat history on connect (like WhatsApp Web). Older messages can be fetched on demand via `fetchMessageHistory` in batches of 50.
 - **Messages:** Sent via Baileys' `sendMessage` API. Incoming messages arrive through WebSocket events (`messages.upsert`).
 - **Media:** Files are read from disk and sent as buffers. Received media is downloaded via `downloadMediaMessage` and saved to `~/.config/wa-cli-mcp/downloads/`.
 - **Groups:** Group metadata is fetched via `groupFetchAllParticipating`. Group messages use `@g.us` JIDs instead of `@s.whatsapp.net`.
@@ -345,7 +352,7 @@ Check [Baileys issues](https://github.com/WhiskeySockets/Baileys/issues) for the
 
 ### "No messages found" on `read`
 
-Both the CLI `read` command and the MCP `whatsapp_read` tool return messages from an in-memory store. On first connection, `syncFullHistory` is enabled so WhatsApp will sync your chat history (similar to WhatsApp Web). The sync can take a few seconds to complete. If you need older messages beyond what was synced, use the `whatsapp_fetch_history` MCP tool to request up to 50 additional messages at a time. Note that `whatsapp_read` does **not** require a subscription — subscriptions only affect `whatsapp_get_notifications`.
+Both the CLI `read` command and the MCP `whatsapp_read` tool return messages from an in-memory store. On first connection, `syncFullHistory` is enabled so WhatsApp will sync your chat history (similar to WhatsApp Web). The sync can take a few seconds to complete. If you need older messages beyond what was synced, use `wa fetch-history +1234567890 --last 200` (CLI) or the `whatsapp_fetch_history` MCP tool (up to 500 messages, fetched in batches of 50). Note that `whatsapp_read` does **not** require a subscription — subscriptions only affect `whatsapp_get_notifications`.
 
 ### MCP server shows "Connection Closed"
 
@@ -357,6 +364,18 @@ npx tsx src/index.ts auth
 ```
 
 Then reconnect the MCP server in Claude Code with `/mcp`.
+
+## Testing
+
+```bash
+npm test                    # Unit + functional tests (no WhatsApp needed)
+npm run test:unit           # Unit tests only
+npm run test:functional     # Functional tests only (mocked socket)
+npm run test:integration    # Integration tests (requires auth, sends real messages)
+npm run test:all            # All tests
+```
+
+**Important:** Integration tests connect to WhatsApp and send real messages to a test contact. Make sure the MCP server is not running (only one connection at a time). The last integration test requires you to reply from the test phone within 60 seconds.
 
 ## Disclaimer
 
