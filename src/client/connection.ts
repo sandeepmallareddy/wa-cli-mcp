@@ -6,9 +6,12 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import P from 'pino'
-import qrcode from 'qrcode-terminal'
+import { createRequire } from 'module'
 import { rmSync } from 'fs'
 import path from 'path'
+
+const require = createRequire(import.meta.url)
+const qrcode = require('qrcode-terminal')
 import { getAuthState } from './auth.js'
 
 const logger = P({ level: 'silent' })
