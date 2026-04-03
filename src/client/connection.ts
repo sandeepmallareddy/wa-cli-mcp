@@ -1,4 +1,5 @@
 import makeWASocket, {
+  Browsers,
   DisconnectReason,
   makeCacheableSignalKeyStore,
   type WASocket,
@@ -49,6 +50,8 @@ export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
       },
       logger,
       version: [2, 3000, 1034074495],
+      browser: Browsers.macOS('Desktop'),
+      syncFullHistory: true,
     })
 
     sock.ev.on('creds.update', saveCreds)

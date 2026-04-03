@@ -13,7 +13,7 @@ Built with [Baileys](https://github.com/WhiskeySockets/Baileys) (WhatsApp Web AP
 - **Forward** — forward messages to other contacts or groups
 - **Groups** — list groups, send/read group messages
 - **Interactive REPL** — stay connected, chat in real-time, see incoming messages live
-- **MCP Server** — 15 structured tools for Claude Code integration with subscription-based notifications
+- **MCP Server** — 16 structured tools for Claude Code integration with subscription-based notifications
 
 ## Prerequisites
 
@@ -99,7 +99,7 @@ Messages display like this:
 
 The 8-character code in parentheses (e.g., `a1b2c3d4`) is the **message ID** — you'll need it for reply, react, edit, delete, and forward.
 
-> **Note:** `read` only shows messages received after the CLI connects. WhatsApp may sync some recent history on connection, but this is unreliable and varies. For real-time message viewing, use `repl` mode.
+> **Note:** `read` shows messages from the in-memory store. Chat history is synced automatically on connection (may take a few seconds). For real-time message viewing, use `repl` mode.
 
 ### Reply, React, Edit, Delete, Forward
 
@@ -159,7 +159,7 @@ wa> exit
 
 ## Claude Code Integration (MCP Server)
 
-This project includes an MCP (Model Context Protocol) server that lets Claude Code interact with WhatsApp through 15 structured tools. The server maintains a persistent WhatsApp connection and supports subscription-based notifications.
+This project includes an MCP (Model Context Protocol) server that lets Claude Code interact with WhatsApp through 16 structured tools. The server maintains a persistent WhatsApp connection and supports subscription-based notifications.
 
 ### Quick Setup
 
@@ -185,7 +185,8 @@ claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/wa-cli-mcp/src/mcp-server
 | `whatsapp_me` | Get linked account info (phone number, name) |
 | `whatsapp_send` | Send text message |
 | `whatsapp_send_media` | Send image/video/doc/voice note |
-| `whatsapp_read` | Read messages from a contact (only messages received after the MCP server started; does not require a subscription) |
+| `whatsapp_read` | Read messages from a contact (includes history synced on connect; does not require a subscription) |
+| `whatsapp_fetch_history` | Fetch older messages beyond what's in memory (up to 50 per call) |
 | `whatsapp_reply` | Quote-reply to a message |
 | `whatsapp_react` | React with emoji |
 | `whatsapp_edit` | Edit a sent message |
@@ -334,7 +335,7 @@ Check [Baileys issues](https://github.com/WhiskeySockets/Baileys/issues) for the
 
 ### "No messages found" on `read`
 
-Both the CLI `read` command and the MCP `whatsapp_read` tool only return messages from an in-memory store that is populated after connection. WhatsApp may sync some recent history when the connection is first established, but this is unreliable and the depth varies. Messages sent before the CLI/MCP server was running are generally not available. Note that `whatsapp_read` does **not** require a subscription — subscriptions only affect `whatsapp_get_notifications`. For continuous real-time messages, use `wa repl` or the MCP subscription system.
+Both the CLI `read` command and the MCP `whatsapp_read` tool return messages from an in-memory store. On first connection, `syncFullHistory` is enabled so WhatsApp will sync your chat history (similar to WhatsApp Web). The sync can take a few seconds to complete. If you need older messages beyond what was synced, use the `whatsapp_fetch_history` MCP tool to request up to 50 additional messages at a time. Note that `whatsapp_read` does **not** require a subscription — subscriptions only affect `whatsapp_get_notifications`.
 
 ### MCP server shows "Connection Closed"
 
