@@ -36,6 +36,39 @@ export class MessageStore {
   }
 
   /**
+   * Get messages across multiple JIDs (e.g. phone JID + LID JID).
+   * Merges, deduplicates, sorts by timestamp, and returns the last N.
+   */
+  getMessagesMultiJid(jids: string[], limit: number): WAMessage[] {
+    const seen = new Set<string>()
+    return this.messages
+      .filter((m) => {
+        if (!jids.includes(m.key.remoteJid || '')) return false
+        const id = m.key.id || ''
+        if (seen.has(id)) return false
+        seen.add(id)
+        return true
+      })
+      .sort(
+        (a, b) =>
+          Number(a.messageTimestamp || 0) - Number(b.messageTimestamp || 0)
+      )
+      .slice(-limit)
+  }
+
+  /**
+   * Get all unique remoteJid values in the store.
+   * Used for LID discovery — pass these to resolveJids to find LID mappings.
+   */
+  getAllJids(): string[] {
+    const jids = new Set<string>()
+    for (const msg of this.messages) {
+      if (msg.key.remoteJid) jids.add(msg.key.remoteJid)
+    }
+    return [...jids]
+  }
+
+  /**
    * Find a message by its full or short ID within a JID.
    * Requires at least 4 characters to avoid accidental matches.
    */

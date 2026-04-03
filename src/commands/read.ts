@@ -1,6 +1,6 @@
 import { connect } from '../client/connection.js'
 import { MessageStore, printMessages } from '../messages/reader.js'
-import { phoneToJid } from '../utils/phone.js'
+import { resolveJids } from '../utils/phone.js'
 
 interface ReadOptions {
   last?: string
@@ -11,7 +11,6 @@ export async function readCommand(
   phone: string,
   opts: ReadOptions
 ): Promise<void> {
-  const jid = phoneToJid(phone)
   const limit = parseInt(opts.last || '20', 10)
   const store = new MessageStore()
 
@@ -25,11 +24,13 @@ export async function readCommand(
   // Wait for message sync
   await new Promise((r) => setTimeout(r, 5000))
 
-  const messages = store.getMessages(jid, limit)
+  // Resolve phone JID + LID JID (pass store JIDs for reverse LID lookup)
+  const jids = await resolveJids(sock, phone, store.getAllJids())
+  const messages = store.getMessagesMultiJid(jids, limit)
 
   if (messages.length === 0) {
     console.log('No messages found for this contact in this session.')
-    console.log('Note: Historical messages require an active session. Use "wa repl" to see messages in real-time.')
+    console.log('Tip: Use "wa fetch-history" to pull older messages, or "wa repl" for real-time messages.')
   } else {
     await printMessages(messages, opts.media || false)
   }

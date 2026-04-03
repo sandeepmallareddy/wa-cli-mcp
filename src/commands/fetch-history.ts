@@ -1,6 +1,6 @@
 import { connect } from '../client/connection.js'
 import { MessageStore, printMessages } from '../messages/reader.js'
-import { phoneToJid } from '../utils/phone.js'
+import { resolveJids } from '../utils/phone.js'
 
 interface FetchHistoryOptions {
   last?: string
@@ -11,7 +11,6 @@ export async function fetchHistoryCommand(
   phone: string,
   opts: FetchHistoryOptions
 ): Promise<void> {
-  const jid = phoneToJid(phone)
   const requested = parseInt(opts.last || '50', 10)
   const store = new MessageStore()
 
@@ -25,7 +24,10 @@ export async function fetchHistoryCommand(
   // Wait for initial history sync
   await new Promise((r) => setTimeout(r, 5000))
 
-  let fetched = store.getMessages(jid, requested)
+  // Resolve phone JID + LID JID (pass store JIDs for reverse LID lookup)
+  const jids = await resolveJids(sock, phone, store.getAllJids())
+
+  let fetched = store.getMessagesMultiJid(jids, requested)
 
   if (fetched.length >= requested) {
     console.log(`Already have ${fetched.length} messages from history sync.\n`)
@@ -40,7 +42,8 @@ export async function fetchHistoryCommand(
   const maxBatches = Math.ceil(remaining / 50)
 
   while (remaining > 0 && batchCount < maxBatches) {
-    const oldest = store.getMessages(jid, 1)[0]
+    // Find the oldest message across all JIDs
+    const oldest = store.getMessagesMultiJid(jids, 1)[0]
     if (!oldest) {
       console.log('No messages in store to fetch history from. Send or receive a message first.')
       break
@@ -63,19 +66,18 @@ export async function fetchHistoryCommand(
     // Wait for the history sync event to deliver messages
     await new Promise((r) => setTimeout(r, 3000))
 
-    const newCount = store.getMessages(jid, requested).length
+    const newCount = store.getMessagesMultiJid(jids, requested).length
     if (newCount === fetched.length) {
-      // No new messages arrived — we've reached the end of history
       console.log('No more messages available.')
       break
     }
 
-    fetched = store.getMessages(jid, requested)
+    fetched = store.getMessagesMultiJid(jids, requested)
     remaining = requested - fetched.length
     batchCount++
   }
 
-  const messages = store.getMessages(jid, requested)
+  const messages = store.getMessagesMultiJid(jids, requested)
 
   if (messages.length === 0) {
     console.log('No messages found for this contact.')
