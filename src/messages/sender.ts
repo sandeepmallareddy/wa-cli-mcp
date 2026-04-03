@@ -1,7 +1,54 @@
 import type { WASocket, WAMessage } from 'baileys'
-import { readFile } from 'fs/promises'
+import { readFile, realpath } from 'fs/promises'
 import mime from 'mime-types'
 import path from 'path'
+import os from 'os'
+
+/** Blocked filenames that should never be sent */
+const BLOCKED_FILES = [
+  'creds.json', 'id_rsa', 'id_ed25519', 'id_ecdsa', 'id_dsa',
+  '.env', '.env.local', '.env.production', 'credentials',
+  '.npmrc', '.pypirc', 'token', 'secret',
+]
+
+/** Blocked directory paths that should never be read from */
+const BLOCKED_DIRS = [
+  path.join(os.homedir(), '.ssh'),
+  path.join(os.homedir(), '.gnupg'),
+  path.join(os.homedir(), '.aws'),
+  path.join(os.homedir(), '.config', 'whatsapp-bailey', 'auth_state'),
+]
+
+/**
+ * Validate that a file path is safe to read and send.
+ * Blocks access to sensitive files and directories.
+ */
+export async function validateFilePath(filePath: string): Promise<string> {
+  const resolved = path.resolve(filePath)
+  let real: string
+  try {
+    real = await realpath(resolved)
+  } catch {
+    throw new Error(`File not found: ${filePath}`)
+  }
+
+  // Block sensitive directories
+  for (const dir of BLOCKED_DIRS) {
+    if (real.startsWith(dir + path.sep) || real === dir) {
+      throw new Error('File access denied: sensitive directory')
+    }
+  }
+
+  // Block sensitive filenames
+  const basename = path.basename(real).toLowerCase()
+  for (const blocked of BLOCKED_FILES) {
+    if (basename === blocked || basename.startsWith('.env')) {
+      throw new Error('File access denied: sensitive file')
+    }
+  }
+
+  return real
+}
 
 /**
  * Send a text message.
@@ -24,7 +71,7 @@ export async function sendMedia(
   filePath: string,
   caption?: string
 ): Promise<void> {
-  const absolutePath = path.resolve(filePath)
+  const absolutePath = await validateFilePath(filePath)
   const mimeType = mime.lookup(absolutePath) || 'application/octet-stream'
   const buffer = await readFile(absolutePath)
   const fileName = path.basename(absolutePath)

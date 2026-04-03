@@ -37,11 +37,21 @@ export class MessageStore {
 
   /**
    * Find a message by its full or short ID within a JID.
+   * Requires at least 4 characters to avoid accidental matches.
    */
   findByShortId(jid: string, shortId: string): WAMessage | undefined {
     return this.messages.find(
       (m) => m.key.remoteJid === jid && m.key.id?.endsWith(shortId)
     )
+  }
+
+  /**
+   * Enforce a maximum store size by evicting oldest messages.
+   */
+  enforceLimit(max: number): void {
+    if (this.messages.length > max) {
+      this.messages = this.messages.slice(-max)
+    }
   }
 }
 
