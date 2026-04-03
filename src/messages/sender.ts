@@ -1,4 +1,4 @@
-import type { WASocket, WAMessage } from '@whiskeysockets/baileys'
+import type { WASocket, WAMessage } from 'baileys'
 import { readFile } from 'fs/promises'
 import mime from 'mime-types'
 import path from 'path'

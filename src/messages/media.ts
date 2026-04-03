@@ -1,4 +1,4 @@
-import { downloadMediaMessage, type WAMessage } from '@whiskeysockets/baileys'
+import { downloadMediaMessage, type WAMessage } from 'baileys'
 import { createWriteStream, mkdirSync } from 'fs'
 import path from 'path'
 import { getMediaType } from '../utils/format.js'

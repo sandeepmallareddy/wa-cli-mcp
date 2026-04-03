@@ -1,4 +1,4 @@
-import { useMultiFileAuthState } from '@whiskeysockets/baileys'
+import { useMultiFileAuthState } from 'baileys'
 import path from 'path'
 
 const AUTH_DIR = path.join(process.cwd(), 'auth_state')

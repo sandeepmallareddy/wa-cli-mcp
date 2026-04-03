@@ -1,4 +1,4 @@
-import type { WAMessage, BaileysEventMap } from '@whiskeysockets/baileys'
+import type { WAMessage, BaileysEventMap } from 'baileys'
 import { formatMessage, getMediaType } from '../utils/format.js'
 import { downloadMedia } from './media.js'
 

@@ -1,5 +1,5 @@
 import { jidToPhone } from './phone.js'
-import type { WAMessage } from '@whiskeysockets/baileys'
+import type { WAMessage } from 'baileys'
 
 export interface FormattedMessage {
   timestamp: string

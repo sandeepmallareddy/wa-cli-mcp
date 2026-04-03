@@ -3,7 +3,7 @@ import makeWASocket, {
   makeCacheableSignalKeyStore,
   type WASocket,
   type BaileysEventMap,
-} from '@whiskeysockets/baileys'
+} from 'baileys'
 import { Boom } from '@hapi/boom'
 import P from 'pino'
 import { createRequire } from 'module'
@@ -39,6 +39,7 @@ export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
         keys: makeCacheableSignalKeyStore(state.keys, logger),
       },
       logger,
+      version: [2, 3000, 1034074495],
     })
 
     sock.ev.on('creds.update', saveCreds)

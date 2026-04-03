@@ -4,7 +4,7 @@ import { MessageStore, printMessages } from '../messages/reader.js'
 import { sendText, sendMedia, sendReply, sendReaction } from '../messages/sender.js'
 import { phoneToJid } from '../utils/phone.js'
 import { formatMessage } from '../utils/format.js'
-import type { WASocket } from '@whiskeysockets/baileys'
+import type { WASocket } from 'baileys'
 
 export async function replCommand(): Promise<void> {
   const store = new MessageStore()
