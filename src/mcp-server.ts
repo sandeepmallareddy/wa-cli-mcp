@@ -32,7 +32,9 @@ const MAX_READ_LIMIT = 100
 // --- State ---
 let sock: WASocket
 const store = new MessageStore()
-const subscriptions = new Set<string>()
+const subscriptions = new Set<string>() // phone JIDs we're watching
+const lidToPhone = new Map<string, string>() // LID JID → phone JID cache
+const phoneToLid = new Map<string, string>() // phone JID → LID JID cache
 const notificationBuffer: Array<{
   jid: string; sender: string; text: string;
   timestamp: number; messageId: string
@@ -90,6 +92,37 @@ function ok(data: Record<string, unknown>) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(data) }] }
 }
 
+/** Check if a JID (phone or LID) matches any subscription */
+function isSubscribed(jid: string): boolean {
+  if (subscriptions.has(jid)) return true
+  // If JID is a LID, check if the mapped phone JID is subscribed
+  if (jid.endsWith('@lid')) {
+    const phoneJid = lidToPhone.get(jid)
+    if (phoneJid && subscriptions.has(phoneJid)) return true
+  }
+  // If JID is a phone, check if its LID is subscribed
+  if (jid.endsWith('@s.whatsapp.net')) {
+    const lid = phoneToLid.get(jid)
+    if (lid && subscriptions.has(lid)) return true
+  }
+  return false
+}
+
+/** Try to resolve a LID to a phone JID using Baileys' signal repository */
+async function learnLidMapping(jid: string): Promise<void> {
+  if (!jid.endsWith('@lid') || lidToPhone.has(jid)) return
+  try {
+    const repo = (sock as any).signalRepository
+    if (repo?.lidMapping?.getPNForLID) {
+      const pn = await repo.lidMapping.getPNForLID(jid)
+      if (pn) {
+        lidToPhone.set(jid, pn)
+        phoneToLid.set(pn, jid)
+      }
+    }
+  } catch {}
+}
+
 // Phone number schema with regex validation
 const phoneSchema = z.string().regex(/^\+?\d{7,15}$/, 'Invalid phone number. Use format: +919876543210')
 
@@ -140,8 +173,29 @@ server.registerTool(
     }),
   },
   safeTool('whatsapp_read', async ({ phone, limit }) => {
-    const messages = store.getMessages(phoneToJid(phone), limit).map(messageToJson)
-    return ok({ messages, count: messages.length })
+    const jid = phoneToJid(phone)
+    let messages = store.getMessages(jid, limit)
+    // Also check LID JID if no messages found under phone JID
+    if (messages.length === 0) {
+      const lid = phoneToLid.get(jid)
+      if (lid) {
+        messages = store.getMessages(lid, limit)
+      } else {
+        // Try to discover the LID
+        try {
+          const repo = (sock as any).signalRepository
+          if (repo?.lidMapping?.getLIDForPN) {
+            const discoveredLid = await repo.lidMapping.getLIDForPN(jid)
+            if (discoveredLid) {
+              lidToPhone.set(discoveredLid, jid)
+              phoneToLid.set(jid, discoveredLid)
+              messages = store.getMessages(discoveredLid, limit)
+            }
+          }
+        } catch {}
+      }
+    }
+    return ok({ messages: messages.map(messageToJson), count: messages.length })
   })
 )
 
@@ -291,6 +345,19 @@ server.registerTool(
   safeTool('whatsapp_subscribe', async ({ target }) => {
     const jid = await resolveTarget(target)
     subscriptions.add(jid)
+    // Also try to resolve and subscribe the LID for this phone
+    if (jid.endsWith('@s.whatsapp.net')) {
+      try {
+        const repo = (sock as any).signalRepository
+        if (repo?.lidMapping?.getLIDForPN) {
+          const lid = await repo.lidMapping.getLIDForPN(jid)
+          if (lid) {
+            lidToPhone.set(lid, jid)
+            phoneToLid.set(jid, lid)
+          }
+        }
+      } catch {}
+    }
     return ok({ success: true, subscribed: target, jid })
   })
 )
@@ -344,12 +411,21 @@ async function main() {
         for (const msg of event.messages) {
           if (msg.key.fromMe) continue
           const jid = msg.key.remoteJid || ''
-          if (subscriptions.has(jid)) {
+
+          // Learn LID→phone mapping for future lookups
+          learnLidMapping(jid).catch(() => {})
+
+          if (isSubscribed(jid)) {
+            // Resolve display JID to phone number if it's a LID
+            const displayJid = jid.endsWith('@lid')
+              ? (lidToPhone.get(jid) || jid)
+              : jid
+
             notificationBuffer.push({
-              jid,
+              jid: displayJid,
               sender: msg.key.participant
                 ? `${msg.pushName || ''} (${jidToPhone(msg.key.participant)})`.trim()
-                : jidToPhone(jid),
+                : msg.pushName || jidToPhone(displayJid),
               text: extractText(msg) || getMediaType(msg) || '[unsupported]',
               timestamp: Number(msg.messageTimestamp || 0),
               messageId: shortMessageId(msg.key.id || ''),
