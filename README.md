@@ -356,6 +356,8 @@ Both the CLI `read` command and the MCP `whatsapp_read` tool return messages fro
 
 WhatsApp uses LID (Linked IDs) internally, so messages may be stored under a different JID than the phone number. Both CLI and MCP handle this automatically via two-stage LID resolution.
 
+**Note:** WhatsApp's history sync is non-deterministic — the same command may return different numbers of messages between connections. If `read` or `fetch-history` returns 0 messages, try running it again (up to 3 times). This is a WhatsApp server-side behavior, not a bug.
+
 ### MCP server shows "Connection Closed"
 
 The auth state may be corrupted (usually from running two connections simultaneously). Delete and re-authenticate:
