@@ -273,8 +273,9 @@ whatsapp-bailey/
 │       ├── phone.ts          # Phone number ↔ WhatsApp JID conversion
 │       ├── format.ts         # Message formatting for terminal
 │       └── groups.ts         # Group name resolution
-├── auth_state/               # Session files (auto-created, gitignored)
-├── downloads/                # Downloaded media (auto-created, gitignored)
+├── ~/.config/whatsapp-bailey/
+│   ├── auth_state/           # Session files (owner-only permissions)
+│   └── downloads/            # Downloaded media
 ├── package.json
 ├── tsconfig.json
 └── .gitignore
@@ -284,9 +285,9 @@ whatsapp-bailey/
 
 This tool uses [Baileys](https://github.com/WhiskeySockets/Baileys), a TypeScript library that connects directly to WhatsApp's servers using the **Linked Devices** protocol (the same one WhatsApp Web uses). No browser automation — it's a direct WebSocket connection.
 
-- **Authentication:** When you scan the QR code, WhatsApp links your phone to this CLI as a "linked device". Session keys are saved in `auth_state/` so you only scan once.
+- **Authentication:** When you scan the QR code, WhatsApp links your phone to this CLI as a "linked device". Session keys are saved in `~/.config/whatsapp-bailey/auth_state/` with owner-only permissions (700/600) so you only scan once.
 - **Messages:** Sent via Baileys' `sendMessage` API. Incoming messages arrive through WebSocket events (`messages.upsert`).
-- **Media:** Files are read from disk and sent as buffers. Received media is downloaded via `downloadMediaMessage` and saved to `downloads/`.
+- **Media:** Files are read from disk and sent as buffers. Received media is downloaded via `downloadMediaMessage` and saved to `~/.config/whatsapp-bailey/downloads/`.
 - **Groups:** Group metadata is fetched via `groupFetchAllParticipating`. Group messages use `@g.us` JIDs instead of `@s.whatsapp.net`.
 
 ## Troubleshooting
@@ -311,10 +312,10 @@ The `read` command only shows messages received during the current session. What
 
 ### Session expired / logged out
 
-Delete `auth_state/` and re-authenticate:
+Delete the auth state and re-authenticate:
 
 ```bash
-rm -rf auth_state/
+rm -rf ~/.config/whatsapp-bailey/auth_state/
 npx tsx src/index.ts auth
 ```
 
