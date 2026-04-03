@@ -6,6 +6,8 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import P from 'pino'
+import { rmSync } from 'fs'
+import path from 'path'
 import { getAuthState } from './auth.js'
 
 const logger = P({ level: 'silent' })
@@ -44,6 +46,7 @@ export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
       if (connection === 'close') {
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
         if (statusCode === DisconnectReason.loggedOut) {
+          rmSync(path.join(process.cwd(), 'auth_state'), { recursive: true, force: true })
           console.error('Logged out. Run "wa auth" to re-authenticate.')
           reject(new Error('logged_out'))
         } else {
