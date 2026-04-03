@@ -13,7 +13,7 @@ Built with [Baileys](https://github.com/WhiskeySockets/Baileys) (WhatsApp Web AP
 - **Forward** — forward messages to other contacts or groups
 - **Groups** — list groups, send/read group messages
 - **Interactive REPL** — stay connected, chat in real-time, see incoming messages live
-- **MCP Server** — 16 structured tools for Claude Code integration with subscription-based notifications
+- **MCP Server** — 15 structured tools for Claude Code integration with subscription-based notifications
 
 ## Prerequisites
 
@@ -26,8 +26,8 @@ Built with [Baileys](https://github.com/WhiskeySockets/Baileys) (WhatsApp Web AP
 ### 1. Clone and install
 
 ```bash
-git clone <your-repo-url> whatsapp-bailey
-cd whatsapp-bailey
+git clone https://github.com/sandeepmallareddy/wa-cli-mcp.git
+cd wa-cli-mcp
 npm install
 ```
 
@@ -61,7 +61,7 @@ All commands use the format:
 npx tsx src/index.ts <command> [arguments] [options]
 ```
 
-> **Tip:** Create an alias: `alias wa="npx tsx /path/to/whatsapp-bailey/src/index.ts"` and then just use `wa send ...`, `wa read ...`, etc.
+> **Tip:** Create an alias: `alias wa="npx tsx /path/to/wa-cli-mcp/src/index.ts"` and then just use `wa send ...`, `wa read ...`, etc.
 
 ---
 
@@ -159,21 +159,21 @@ wa> exit
 
 ## Claude Code Integration (MCP Server)
 
-This project includes an MCP (Model Context Protocol) server that lets Claude Code interact with WhatsApp through 16 structured tools. The server maintains a persistent WhatsApp connection and supports subscription-based notifications.
+This project includes an MCP (Model Context Protocol) server that lets Claude Code interact with WhatsApp through 15 structured tools. The server maintains a persistent WhatsApp connection and supports subscription-based notifications.
 
 ### Quick Setup
 
 1. **Authenticate first** (if you haven't already):
 
 ```bash
-cd /path/to/whatsapp-bailey
+cd /path/to/wa-cli-mcp
 npx tsx src/index.ts auth
 ```
 
 2. **Add the MCP server** (one command):
 
 ```bash
-claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/whatsapp-bailey/src/mcp-server.ts
+claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/wa-cli-mcp/src/mcp-server.ts
 ```
 
 3. **Restart Claude Code.** The WhatsApp tools will be auto-discovered.
@@ -230,7 +230,7 @@ The subscription system lets Claude monitor specific contacts and groups for inc
 ## Project Structure
 
 ```
-whatsapp-bailey/
+wa-cli-mcp/
 ├── src/
 │   ├── index.ts              # CLI entry point (Commander.js)
 │   ├── mcp-server.ts         # MCP server entry point (Claude Code)
@@ -246,7 +246,8 @@ whatsapp-bailey/
 │   │   └── forward.ts        # wa forward
 │   ├── client/
 │   │   ├── connection.ts     # WhatsApp connection, QR code, reconnection
-│   │   └── auth.ts           # Session persistence (~/.config/whatsapp-bailey/)
+│   │   ├── auth.ts           # Session persistence (~/.config/whatsapp-bailey/)
+│   │   └── qrcode-terminal.d.ts  # Type declarations for qrcode-terminal
 │   ├── messages/
 │   │   ├── sender.ts         # Send text, media, reply, react, edit, delete, forward
 │   │   ├── reader.ts         # Message store, history
@@ -259,7 +260,9 @@ whatsapp-bailey/
 │   ├── CLAUDE.md.example     # Sample CLAUDE.md with WhatsApp monitoring section
 │   └── watch.json.example    # Sample watch list config
 ├── package.json
+├── package-lock.json
 ├── tsconfig.json
+├── LICENSE
 └── .gitignore
 ```
 
