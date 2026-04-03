@@ -101,6 +101,16 @@ The 8-character code in parentheses (e.g., `a1b2c3d4`) is the **message ID** —
 
 > **Note:** `read` shows messages from the in-memory store. Chat history is synced automatically on connection (may take a few seconds). For real-time message viewing, use `repl` mode.
 
+### Fetch Older Messages
+
+```bash
+wa fetch-history +1234567890               # Fetch 50 older messages (default)
+wa fetch-history +1234567890 --last 200    # Fetch 200 older messages
+wa fetch-history +1234567890 --last 100 --media  # Fetch and download media
+```
+
+Fetches messages beyond what was synced on connect. Pulls in batches of 50 from WhatsApp's servers.
+
 ### Reply, React, Edit, Delete, Forward
 
 ```bash

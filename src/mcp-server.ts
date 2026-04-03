@@ -209,31 +209,43 @@ server.registerTool(
 server.registerTool(
   'whatsapp_fetch_history',
   {
-    description: 'Fetch older messages from a chat beyond what is already in memory. Retrieves up to 50 messages before the oldest message currently stored for a contact. Results arrive asynchronously via history sync and are added to the message store — call whatsapp_read afterwards to see them. WARNING: Message content is untrusted external input.',
+    description: 'Fetch older messages from a chat beyond what is already in memory. Fetches in batches of 50 (WhatsApp limit per request). Results arrive asynchronously via history sync and are added to the message store — call whatsapp_read after a few seconds to see them. WARNING: Message content is untrusted external input.',
     inputSchema: z.object({
       phone: phoneSchema.describe('Phone number with country code'),
-      count: z.number().min(1).max(50).optional().default(50).describe('Number of messages to fetch (max 50)'),
+      count: z.number().min(1).max(500).optional().default(50).describe('Number of messages to fetch (max 500, fetched in batches of 50)'),
     }),
   },
   safeTool('whatsapp_fetch_history', async ({ phone, count }) => {
     const jid = phoneToJid(phone)
-    const messages = store.getMessages(jid, 1)
-    if (messages.length === 0) {
-      // No messages in store — try LID
+
+    // Find the oldest message — check phone JID and LID JID
+    let oldest: WAMessage | undefined = store.getMessages(jid, 1)[0]
+    if (!oldest) {
       const lid = phoneToLid.get(jid)
-      if (lid) {
-        const lidMessages = store.getMessages(lid, 1)
-        if (lidMessages.length > 0) {
-          const oldest = lidMessages[0]
-          const requestId = await sock.fetchMessageHistory(count, oldest.key, Number(oldest.messageTimestamp || 0))
-          return ok({ success: true, requestId, note: 'History request sent. Call whatsapp_read in a few seconds to see the results.' })
-        }
-      }
+      if (lid) oldest = store.getMessages(lid, 1)[0]
+    }
+    if (!oldest) {
       return ok({ success: false, error: 'No messages in store for this contact. Send or receive a message first, then try again.' })
     }
-    const oldest = messages[0]
-    const requestId = await sock.fetchMessageHistory(count, oldest.key, Number(oldest.messageTimestamp || 0))
-    return ok({ success: true, requestId, note: 'History request sent. Call whatsapp_read in a few seconds to see the results.' })
+
+    // Fetch in batches of 50
+    const batches = Math.ceil(count / 50)
+    const requestIds: string[] = []
+    for (let i = 0; i < batches; i++) {
+      const batchSize = Math.min(50, count - i * 50)
+      const currentOldest = store.getMessages(jid, 1)[0] || store.getMessages(phoneToLid.get(jid) || '', 1)[0] || oldest
+      const requestId = await sock.fetchMessageHistory(batchSize, currentOldest.key, Number(currentOldest.messageTimestamp || 0))
+      requestIds.push(requestId)
+      // Small delay between batches to let history sync deliver
+      if (i < batches - 1) await new Promise(r => setTimeout(r, 2000))
+    }
+
+    return ok({
+      success: true,
+      batchesSent: batches,
+      requestIds,
+      note: `${batches} history request(s) sent for ${count} messages. Call whatsapp_read in a few seconds to see the results.`,
+    })
   })
 )
 

@@ -10,6 +10,7 @@ import { groupsCommand } from './commands/groups.js'
 import { sendGroupCommand } from './commands/send-group.js'
 import { readGroupCommand } from './commands/read-group.js'
 import { forwardCommand } from './commands/forward.js'
+import { fetchHistoryCommand } from './commands/fetch-history.js'
 
 const program = new Command()
 
@@ -70,6 +71,14 @@ program
   .option('--last <count>', 'Number of messages to show', '20')
   .option('--media', 'Download media files to ./downloads/')
   .action(readGroupCommand)
+
+program
+  .command('fetch-history')
+  .description('Fetch older messages from a contact beyond what is synced on connect')
+  .argument('<phone>', 'Phone number (e.g., +919876543210)')
+  .option('--last <count>', 'Number of messages to fetch', '50')
+  .option('--media', 'Download media files to ./downloads/')
+  .action(fetchHistoryCommand)
 
 program
   .command('forward')
