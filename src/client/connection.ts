@@ -16,6 +16,7 @@ import { getAuthState } from './auth.js'
 
 const logger = P({ level: 'silent' })
 
+
 export interface ConnectOptions {
   /** Called when connection is open */
   onOpen?: () => void

@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import './suppress-noise.js'
 import { Command } from 'commander'
 import { authCommand } from './commands/auth.js'
 import { sendCommand } from './commands/send.js'
