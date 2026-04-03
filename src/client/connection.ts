@@ -6,6 +6,7 @@ import makeWASocket, {
 } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import P from 'pino'
+import qrcode from 'qrcode-terminal'
 import { rmSync } from 'fs'
 import path from 'path'
 import { getAuthState } from './auth.js'
@@ -35,13 +36,16 @@ export function connect(opts: ConnectOptions = {}): Promise<WASocket> {
         keys: makeCacheableSignalKeyStore(state.keys, logger),
       },
       logger,
-      printQRInTerminal: true,
     })
 
     sock.ev.on('creds.update', saveCreds)
 
     sock.ev.on('connection.update', (update) => {
-      const { connection, lastDisconnect } = update
+      const { connection, lastDisconnect, qr } = update
+
+      if (qr) {
+        qrcode.generate(qr, { small: true })
+      }
 
       if (connection === 'close') {
         const statusCode = (lastDisconnect?.error as Boom)?.output?.statusCode
