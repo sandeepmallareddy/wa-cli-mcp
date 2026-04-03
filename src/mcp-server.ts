@@ -291,6 +291,25 @@ server.registerTool(
 )
 
 server.registerTool(
+  'whatsapp_me',
+  {
+    description: 'Get info about the linked WhatsApp account (phone number, name). Use this to know which number this instance is connected as.',
+    inputSchema: z.object({}),
+  },
+  safeTool('whatsapp_me', async () => {
+    const me = (sock as any).authState?.creds?.me
+    if (!me) return ok({ success: false, error: 'Not authenticated' })
+    const phone = me.id?.split(':')[0] || null
+    return ok({
+      phone: phone ? `+${phone}` : null,
+      name: me.name || null,
+      jid: me.id || null,
+      lid: me.lid || null,
+    })
+  })
+)
+
+server.registerTool(
   'whatsapp_groups',
   {
     description: 'List all WhatsApp groups',
