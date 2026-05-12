@@ -79,6 +79,26 @@ export class MessageStore {
   }
 
   /**
+   * Find a message by its full key.id within a JID.
+   * Returns undefined if not found.
+   */
+  findById(jid: string, messageId: string): WAMessage | undefined {
+    return this.messages.find(
+      (m) => m.key.remoteJid === jid && m.key.id === messageId
+    )
+  }
+
+  /**
+   * Find all messages with the given key.id across every JID in the store.
+   * key.id is unique per-chat in WhatsApp, not globally — callers should
+   * supply a jid (via findById) when known. This helper exists so the
+   * MCP download tool can disambiguate when the caller omits jid.
+   */
+  findAllById(messageId: string): WAMessage[] {
+    return this.messages.filter((m) => m.key.id === messageId)
+  }
+
+  /**
    * Enforce a maximum store size by evicting oldest messages.
    */
   enforceLimit(max: number): void {

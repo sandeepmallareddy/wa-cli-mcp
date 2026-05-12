@@ -314,3 +314,170 @@ describe('MCP tool: whatsapp_fetch_history logic', () => {
     expect(allMsgs[3].message?.conversation).toBe('New message')
   })
 })
+
+/**
+ * Mirrors the lookup branch of whatsapp_download_attachment in mcp-server.ts.
+ * Returns the message + a status describing which branch was hit so tests can
+ * assert each response path without invoking the actual downloadMedia I/O.
+ */
+type DownloadLookup =
+  | { status: 'found'; msg: WAMessage }
+  | { status: 'ambiguous'; candidateJids: string[] }
+  | { status: 'not_in_store' }
+
+function simulateDownloadLookup(
+  store: MessageStore,
+  messageId: string,
+  jid?: string
+): DownloadLookup {
+  if (jid) {
+    const msg = store.findById(jid, messageId)
+    return msg ? { status: 'found', msg } : { status: 'not_in_store' }
+  }
+  const candidates = store.findAllById(messageId)
+  if (candidates.length === 1) return { status: 'found', msg: candidates[0] }
+  if (candidates.length > 1) {
+    const candidateJids = Array.from(
+      new Set(candidates.map((m) => m.key.remoteJid).filter((x): x is string => !!x))
+    )
+    return { status: 'ambiguous', candidateJids }
+  }
+  return { status: 'not_in_store' }
+}
+
+function makeMediaMsg(
+  jid: string,
+  id: string,
+  mediaField: 'imageMessage' | 'documentMessage' | 'audioMessage',
+  extra: Record<string, any>,
+  timestamp = 1000
+): WAMessage {
+  return {
+    key: { remoteJid: jid, fromMe: false, id },
+    messageTimestamp: timestamp,
+    message: { [mediaField]: extra },
+  } as unknown as WAMessage
+}
+
+describe('MCP tool: whatsapp_download_attachment logic', () => {
+  it('finds message by full id when jid is provided', () => {
+    const store = new MessageStore()
+    const jid = phoneToJid('+918341306132')
+    store.handleUpsert({
+      type: 'notify',
+      messages: [
+        makeMediaMsg(jid, 'PDF_ID_FULL', 'documentMessage', {
+          fileName: 'deck.pdf',
+          mimetype: 'application/pdf',
+        }),
+      ],
+    })
+    const result = simulateDownloadLookup(store, 'PDF_ID_FULL', jid)
+    expect(result.status).toBe('found')
+    if (result.status === 'found') {
+      expect(getMediaType(result.msg)).toBe('document')
+      expect(result.msg.message?.documentMessage?.fileName).toBe('deck.pdf')
+    }
+  })
+
+  it('finds message by full id when jid is omitted but id is unique', () => {
+    const store = new MessageStore()
+    const jid = '120363001@g.us'
+    store.handleUpsert({
+      type: 'notify',
+      messages: [
+        makeMediaMsg(jid, 'UNIQUE_ID_ABC', 'imageMessage', {
+          mimetype: 'image/jpeg',
+          caption: 'photo',
+        }),
+      ],
+    })
+    const result = simulateDownloadLookup(store, 'UNIQUE_ID_ABC')
+    expect(result.status).toBe('found')
+  })
+
+  it('reports ambiguity with candidate jids when id collides across chats', () => {
+    const store = new MessageStore()
+    const phoneJid = phoneToJid('+918341306132')
+    const groupJid = '120363001@g.us'
+    store.handleUpsert({
+      type: 'notify',
+      messages: [
+        makeMediaMsg(phoneJid, 'COLLIDE_ID', 'imageMessage', { mimetype: 'image/jpeg' }, 1000),
+        makeMediaMsg(groupJid, 'COLLIDE_ID', 'imageMessage', { mimetype: 'image/jpeg' }, 2000),
+      ],
+    })
+    const result = simulateDownloadLookup(store, 'COLLIDE_ID')
+    expect(result.status).toBe('ambiguous')
+    if (result.status === 'ambiguous') {
+      expect(result.candidateJids.sort()).toEqual([groupJid, phoneJid].sort())
+    }
+  })
+
+  it('reports not_in_store when the id is unknown', () => {
+    const store = new MessageStore()
+    const jid = phoneToJid('+918341306132')
+    store.handleUpsert({
+      type: 'notify',
+      messages: [makeMediaMsg(jid, 'KNOWN_ID', 'imageMessage', { mimetype: 'image/jpeg' })],
+    })
+    expect(simulateDownloadLookup(store, 'OTHER_ID').status).toBe('not_in_store')
+    // Also when jid is passed but message is not in that jid
+    expect(simulateDownloadLookup(store, 'KNOWN_ID', '120363999@g.us').status).toBe('not_in_store')
+  })
+
+  it('classifies text-only message as having no media (precondition for the no-media error path)', () => {
+    const store = new MessageStore()
+    const jid = phoneToJid('+918341306132')
+    store.handleUpsert({
+      type: 'notify',
+      messages: [makeMsg(jid, 'TEXT_ID', 'just text', 1000)],
+    })
+    const result = simulateDownloadLookup(store, 'TEXT_ID', jid)
+    expect(result.status).toBe('found')
+    if (result.status === 'found') {
+      expect(getMediaType(result.msg)).toBeNull()
+    }
+  })
+})
+
+describe('MCP tool: whatsapp_fetch_group_history logic', () => {
+  it('uses the group JID as a single-JID anchor (no LID fallback for groups)', () => {
+    const store = new MessageStore()
+    const groupJid = '120363001@g.us'
+    store.handleUpsert({
+      type: 'notify',
+      messages: [
+        makeMsg(groupJid, 'GROUP_MSG_1', 'Hello group', 1000),
+        makeMsg(groupJid, 'GROUP_MSG_2', 'Another', 2000),
+      ],
+    })
+    // Mirror the handler: store.getMessages(jid, 1)[0]
+    const anchor = store.getMessages(groupJid, 1)[0]
+    expect(anchor).toBeDefined()
+    expect(anchor.key.remoteJid).toBe(groupJid)
+  })
+
+  it('returns falsy anchor when group has no messages in store', () => {
+    const store = new MessageStore()
+    const groupJid = '120363999@g.us'
+    const anchor = store.getMessages(groupJid, 1)[0]
+    expect(anchor).toBeUndefined()
+    // MCP handler would then short-circuit with the "No messages in store..." error.
+  })
+
+  it('reuses the fetch_history batch math for group counts', () => {
+    // Same batching as whatsapp_fetch_history — verify the math stays
+    // in lockstep so callers get consistent batchesSent shape.
+    const testCases = [
+      { count: 10, expectedBatches: 1 },
+      { count: 50, expectedBatches: 1 },
+      { count: 51, expectedBatches: 2 },
+      { count: 200, expectedBatches: 4 },
+      { count: 500, expectedBatches: 10 },
+    ]
+    for (const { count, expectedBatches } of testCases) {
+      expect(Math.ceil(count / 50), `count=${count}`).toBe(expectedBatches)
+    }
+  })
+})

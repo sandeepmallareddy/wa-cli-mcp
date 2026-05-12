@@ -13,7 +13,7 @@ Built with [Baileys](https://github.com/WhiskeySockets/Baileys) (WhatsApp Web AP
 - **Forward** — forward messages to other contacts or groups
 - **Groups** — list groups, send/read group messages
 - **Interactive REPL** — stay connected, chat in real-time, see incoming messages live
-- **MCP Server** — 16 structured tools for Claude Code integration with subscription-based notifications
+- **MCP Server** — 18 structured tools for Claude Code integration with subscription-based notifications
 
 ## Prerequisites
 
@@ -169,7 +169,7 @@ wa> exit
 
 ## Claude Code Integration (MCP Server)
 
-This project includes an MCP (Model Context Protocol) server that lets Claude Code interact with WhatsApp through 16 structured tools. The server maintains a persistent WhatsApp connection and supports subscription-based notifications.
+This project includes an MCP (Model Context Protocol) server that lets Claude Code interact with WhatsApp through 18 structured tools. The server maintains a persistent WhatsApp connection and supports subscription-based notifications.
 
 ### Quick Setup
 
@@ -197,6 +197,7 @@ claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/wa-cli-mcp/src/mcp-server
 | `whatsapp_send_media` | Send image/video/doc/voice note |
 | `whatsapp_read` | Read messages from a contact (includes history synced on connect; does not require a subscription) |
 | `whatsapp_fetch_history` | Fetch older messages beyond what's in memory (up to 500, batched in 50s) |
+| `whatsapp_download_attachment` | Download media bytes for a specific message to disk; returns the saved file path under `~/.config/wa-cli-mcp/downloads/` |
 | `whatsapp_reply` | Quote-reply to a message |
 | `whatsapp_react` | React with emoji |
 | `whatsapp_edit` | Edit a sent message |
@@ -205,6 +206,7 @@ claude mcp add wa-cli-mcp -- npx tsx /absolute/path/to/wa-cli-mcp/src/mcp-server
 | `whatsapp_groups` | List all groups |
 | `whatsapp_send_group` | Send to a group by name |
 | `whatsapp_read_group` | Read group messages |
+| `whatsapp_fetch_group_history` | Fetch older messages from a group beyond what's in memory (up to 500, batched in 50s) |
 | `whatsapp_subscribe` | Watch a contact/group for new messages |
 | `whatsapp_unsubscribe` | Stop watching |
 | `whatsapp_get_notifications` | Fetch new messages from watched contacts |
