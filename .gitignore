@@ -5,3 +5,4 @@ downloads/
 *.js.map
 .env*
 WhatsApp Chat*
+.claude/settings.local.json
